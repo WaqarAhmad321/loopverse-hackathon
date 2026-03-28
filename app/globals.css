@@ -92,9 +92,10 @@
 
 /* Custom Tailwind theme extensions */
 @theme inline {
-  --font-display: 'Satoshi', system-ui, sans-serif;
-  --font-body: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', monospace;
+  --font-display: 'Satoshi', var(--font-dm-sans), system-ui, sans-serif;
+  --font-body: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), 'Geist Mono', monospace;
+  --font-sans: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
 }
 
 /* Scrollbar */

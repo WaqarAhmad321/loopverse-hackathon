@@ -451,25 +451,33 @@ export default async function BuyerHomePage() {
       )}
 
       {/* ============================================================ */}
-      {/*  VALUE PROPS                                                 */}
+      {/*  TRUST STRIP — horizontal, not 3-column icon grid             */}
       {/* ============================================================ */}
-      <section className="border-t border-border bg-[var(--background-secondary,#F8FAFC)] dark:bg-surface">
-        <div className="mx-auto grid max-w-[1200px] gap-8 px-6 py-16 sm:grid-cols-3 lg:px-8">
-          <ValueProp
-            icon={Shield}
-            title="Buyer Protection"
-            description="Every purchase is backed by our guarantee. Shop with complete confidence."
-          />
-          <ValueProp
-            icon={Truck}
-            title="Fast Shipping"
-            description="Free shipping on orders over $50. Most items arrive within 3-5 business days."
-          />
-          <ValueProp
-            icon={BadgeCheck}
-            title="Verified Sellers"
-            description="Only approved, quality sellers. Every store is reviewed before going live."
-          />
+      <section className="border-t border-border">
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-6 px-6 py-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Shield className="size-5 text-accent" strokeWidth={2} />
+            <div>
+              <span className="font-display text-sm font-semibold text-foreground">Buyer Protection</span>
+              <span className="ml-1.5 text-sm text-[var(--text-secondary,#475569)] font-body hidden sm:inline">backed by our guarantee</span>
+            </div>
+          </div>
+          <div className="hidden sm:block h-8 w-px bg-border" />
+          <div className="flex items-center gap-3">
+            <Truck className="size-5 text-accent" strokeWidth={2} />
+            <div>
+              <span className="font-display text-sm font-semibold text-foreground">Free Shipping</span>
+              <span className="ml-1.5 text-sm text-[var(--text-secondary,#475569)] font-body hidden sm:inline">on orders over $50</span>
+            </div>
+          </div>
+          <div className="hidden sm:block h-8 w-px bg-border" />
+          <div className="flex items-center gap-3">
+            <BadgeCheck className="size-5 text-accent" strokeWidth={2} />
+            <div>
+              <span className="font-display text-sm font-semibold text-foreground">Verified Sellers</span>
+              <span className="ml-1.5 text-sm text-[var(--text-secondary,#475569)] font-body hidden sm:inline">quality reviewed</span>
+            </div>
+          </div>
         </div>
       </section>
     </div>

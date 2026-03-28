@@ -178,7 +178,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
             <Link href="/wishlist">
               <Button
                 variant="ghost"
-                size="sm"
+                size="md"
                 isIconOnly
                 aria-label="Wishlist"
                 className={cn(
