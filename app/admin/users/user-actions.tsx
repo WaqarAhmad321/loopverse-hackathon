@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button, TextField, Label, Input } from "@heroui/react";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 interface UserActionsProps {
   currentSearch: string;
@@ -44,6 +44,11 @@ export function UserActions({
     updateParams({ search: searchValue });
   };
 
+  const clearFilters = useCallback(() => {
+    setSearchValue("");
+    router.push("/admin/users");
+  }, [router]);
+
   const roles = [
     { label: "All Roles", value: "" },
     { label: "Buyer", value: "buyer" },
@@ -51,9 +56,18 @@ export function UserActions({
     { label: "Admin", value: "admin" },
   ];
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (currentSearch) count++;
+    if (currentRole) count++;
+    return count;
+  }, [currentSearch, currentRole]);
+
+  const hasFilters = activeFilterCount > 0;
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {/* Search */}
         <div className="flex flex-1 gap-2">
           <TextField className="flex-1">
@@ -74,18 +88,39 @@ export function UserActions({
           </Button>
         </div>
 
-        {/* Role filter */}
-        <div className="flex gap-2">
-          {roles.map((role) => (
-            <Button
-              key={role.value}
-              variant={currentRole === role.value ? "primary" : "outline"}
-              size="sm"
-              onPress={() => updateParams({ role: role.value })}
+        {/* Role filter chips */}
+        <div className="flex items-center gap-2">
+          {roles.map((role) => {
+            const isActive = currentRole === role.value;
+            return (
+              <button
+                key={role.value}
+                onClick={() => updateParams({ role: role.value })}
+                className={`
+                  inline-flex items-center rounded-full px-3 py-1.5
+                  font-body text-xs font-medium transition-all duration-150
+                  ${
+                    isActive
+                      ? "bg-accent/10 text-accent border border-accent"
+                      : "bg-[var(--background-tertiary,#F1F5F9)] text-[color:var(--muted)] border border-transparent hover:border-[var(--border)] hover:text-[color:var(--foreground)]"
+                  }
+                `}
+              >
+                {role.label}
+              </button>
+            );
+          })}
+
+          {/* Active filter count + clear */}
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 font-body text-xs font-medium text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10"
             >
-              {role.label}
-            </Button>
-          ))}
+              <X className="size-3" strokeWidth={2} />
+              Clear{activeFilterCount > 1 ? ` (${activeFilterCount})` : ""}
+            </button>
+          )}
         </div>
       </div>
 

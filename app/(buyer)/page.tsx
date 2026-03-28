@@ -1,15 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import { createServerClient, getUser } from "@/lib/supabase/server";
-import { Card, Button, Chip } from "@heroui/react";
 import {
   Search,
   Star,
   ArrowRight,
   Heart,
-  Shield,
-  Truck,
-  BadgeCheck,
   Zap,
   Shirt,
   Home as HomeIcon,
@@ -27,17 +22,14 @@ import {
   Baby,
   Car,
   Flame,
-  Gift,
-  Store,
 } from "lucide-react";
 import type { Category, Product, SellerProfile } from "@/types/database";
-import { SITE_NAME } from "@/lib/constants";
 import { HeroSearch } from "./hero-search";
 import { getPersonalizedRecommendations } from "@/actions/recommendations";
 import type { LucideIcon } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
-/*  Icon mapping — maps category names (lowercased) to Lucide icons   */
+/*  Icon mapping -- maps category names (lowercased) to Lucide icons   */
 /* ------------------------------------------------------------------ */
 const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
   electronics: Zap,
@@ -82,44 +74,6 @@ type ProductWithSeller = Product & {
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
-/* ------------------------------------------------------------------ */
-/*  Promotional banner data (hardcoded for now)                        */
-/* ------------------------------------------------------------------ */
-interface PromoBanner {
-  id: string;
-  title: string;
-  description: string;
-  href: string;
-  gradient: string;
-  icon: LucideIcon;
-}
-
-const PROMO_BANNERS: PromoBanner[] = [
-  {
-    id: "new-arrivals",
-    title: "New Arrivals",
-    description: "Fresh drops from top sellers this week. Be the first to shop.",
-    href: "/products?sort=newest",
-    gradient: "from-teal-600 to-emerald-500",
-    icon: Sparkles,
-  },
-  {
-    id: "free-shipping",
-    title: "Free Shipping",
-    description: "On all orders over $50. No code needed, applied at checkout.",
-    href: "/products",
-    gradient: "from-amber-500 to-orange-500",
-    icon: Gift,
-  },
-  {
-    id: "seller-spotlight",
-    title: "Seller Spotlight",
-    description: "Discover handpicked stores with exceptional quality and reviews.",
-    href: "/products",
-    gradient: "from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800",
-    icon: Store,
-  },
-];
 
 export default async function BuyerHomePage() {
   const supabase = await createServerClient();
@@ -183,7 +137,7 @@ export default async function BuyerHomePage() {
       {/* ============================================================ */}
       {/*  HERO                                                        */}
       {/* ============================================================ */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-teal-50/50 to-white dark:from-accent/[0.06] dark:to-background">
+      <section className="bg-gradient-to-b from-teal-50/40 to-white dark:from-accent/[0.04] dark:to-background">
         <div className="mx-auto max-w-[1200px] px-6 pt-20 pb-16 text-center sm:pt-24 sm:pb-16 lg:px-8">
           <h1 className="mx-auto max-w-[720px] font-display text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
             Discover unique products from{" "}
@@ -198,143 +152,35 @@ export default async function BuyerHomePage() {
           <div className="mx-auto mt-10 max-w-[540px]">
             <HeroSearch />
           </div>
-
-          {/* Trust line */}
-          <div className="mt-8 flex items-center justify-center gap-6 text-xs font-medium text-muted font-body">
-            <span className="flex items-center gap-1.5">
-              <Shield className="size-3.5" />
-              Buyer protection
-            </span>
-            <span className="hidden sm:inline text-border">|</span>
-            <span className="flex items-center gap-1.5">
-              <Truck className="size-3.5" />
-              Free shipping over $50
-            </span>
-            <span className="hidden sm:inline text-border">|</span>
-            <span className="flex items-center gap-1.5">
-              <BadgeCheck className="size-3.5" />
-              Verified sellers
-            </span>
-          </div>
-        </div>
-
-        {/* Decorative gradient blobs */}
-        <div className="pointer-events-none absolute -top-32 -right-32 size-[500px] rounded-full bg-accent/[0.06] blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-20 size-[300px] rounded-full bg-accent/[0.04] blur-3xl" />
-      </section>
-
-      {/* ============================================================ */}
-      {/*  DEALS & OFFERS — Promotional Banners                        */}
-      {/* ============================================================ */}
-      <section className="mx-auto w-full max-w-[1200px] px-6 pt-16 pb-4 lg:px-8">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
-              Deals & Offers
-            </h2>
-            <p className="mt-1 text-sm text-muted font-body">
-              Limited-time promotions you don&apos;t want to miss
-            </p>
-          </div>
-        </div>
-
-        {/* Horizontal scroll on mobile, grid on desktop */}
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
-          {PROMO_BANNERS.map((banner) => {
-            const BannerIcon = banner.icon;
-            return (
-              <Link
-                key={banner.id}
-                href={banner.href}
-                className="group shrink-0 w-[300px] md:w-auto"
-              >
-                <div
-                  className={`
-                    relative flex h-full min-h-[180px] flex-col justify-between overflow-hidden
-                    rounded-[10px] bg-gradient-to-br ${banner.gradient} p-6
-                    shadow-[0_1px_3px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]
-                    transition-all duration-150 ease-out
-                    group-hover:-translate-y-0.5 group-hover:shadow-[0_12px_32px_rgba(15,23,42,0.12)]
-                  `}
-                >
-                  {/* Background icon */}
-                  <BannerIcon
-                    className="pointer-events-none absolute -right-3 -bottom-3 size-28 text-white/10"
-                    strokeWidth={1}
-                  />
-
-                  <div className="relative z-10">
-                    <div className="mb-3 flex size-9 items-center justify-center rounded-[8px] bg-white/20 backdrop-blur-sm">
-                      <BannerIcon className="size-4.5 text-white" strokeWidth={2} />
-                    </div>
-                    <h3 className="font-display text-lg font-bold text-white">
-                      {banner.title}
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-relaxed text-white/80 font-body">
-                      {banner.description}
-                    </p>
-                  </div>
-
-                  <div className="relative z-10 mt-4">
-                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white font-body transition-all duration-150 group-hover:gap-2.5">
-                      Shop Now
-                      <ArrowRight className="size-4" />
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
         </div>
       </section>
 
       {/* ============================================================ */}
-      {/*  CATEGORIES                                                  */}
+      {/*  CATEGORIES -- compact horizontal pills                      */}
       {/* ============================================================ */}
       {categories.length > 0 && (
-        <section className="mx-auto w-full max-w-[1200px] px-6 pt-16 pb-4 lg:px-8">
-          <div className="mb-8 flex items-end justify-between">
-            <div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
-                Shop by Category
-              </h2>
-              <p className="mt-1 text-sm text-muted font-body">
-                Browse what interests you
-              </p>
-            </div>
-            <Link
-              href="/products"
-              className="group flex items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-[var(--accent-hover,#0F766E)] font-body"
-            >
-              View all
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          </div>
+        <section className="mx-auto w-full max-w-[1200px] px-6 pt-12 pb-4 lg:px-8">
+          <h2 className="mb-4 font-display text-lg font-bold tracking-tight text-foreground sm:text-xl">
+            Shop by Category
+          </h2>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div className="flex flex-nowrap gap-2 overflow-x-auto pb-2 scrollbar-hide sm:flex-wrap sm:overflow-visible sm:pb-0">
             {categories.map((category) => {
               const IconComponent = getCategoryIcon(category.name);
               return (
                 <Link
                   key={category.id}
                   href={`/products?category=${category.slug}`}
-                  className="group"
+                  className="
+                    group inline-flex shrink-0 items-center gap-2 rounded-full
+                    border border-border bg-surface px-4 py-2
+                    font-body text-sm font-medium text-foreground
+                    transition-all duration-150 ease-out
+                    hover:border-accent hover:bg-accent/[0.06] hover:text-accent
+                  "
                 >
-                  <div
-                    className="
-                      flex flex-col items-center gap-3 rounded-[10px] border border-border
-                      bg-surface p-5 transition-all duration-150 ease-out cursor-pointer
-                      hover:border-accent hover:shadow-[0_12px_32px_rgba(15,23,42,0.08)]
-                      hover:-translate-y-0.5
-                    "
-                  >
-                    <div className="flex size-12 items-center justify-center rounded-full bg-accent/[0.08] text-accent transition-colors duration-150 group-hover:bg-accent/[0.15]">
-                      <IconComponent className="size-5" strokeWidth={2} />
-                    </div>
-                    <span className="text-center text-sm font-medium leading-tight text-foreground font-body">
-                      {category.name}
-                    </span>
-                  </div>
+                  <IconComponent className="size-4 text-muted transition-colors duration-150 group-hover:text-accent" strokeWidth={2} />
+                  {category.name}
                 </Link>
               );
             })}
@@ -345,7 +191,7 @@ export default async function BuyerHomePage() {
       {/* ============================================================ */}
       {/*  FEATURED PRODUCTS                                           */}
       {/* ============================================================ */}
-      <section className="mx-auto w-full max-w-[1200px] px-6 pt-16 pb-16 lg:px-8">
+      <section className="mx-auto w-full max-w-[1200px] px-6 pt-12 pb-16 lg:px-8">
         <div className="mb-8 flex items-end justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
@@ -415,64 +261,6 @@ export default async function BuyerHomePage() {
           </div>
         </section>
       )}
-
-      {/* ============================================================ */}
-      {/*  TRUST STRIP — horizontal, not 3-column icon grid             */}
-      {/* ============================================================ */}
-      <section className="border-t border-border">
-        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-6 px-6 py-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Shield className="size-5 text-accent" strokeWidth={2} />
-            <div>
-              <span className="font-display text-sm font-semibold text-foreground">Buyer Protection</span>
-              <span className="ml-1.5 text-sm text-[var(--text-secondary,#475569)] font-body hidden sm:inline">backed by our guarantee</span>
-            </div>
-          </div>
-          <div className="hidden sm:block h-8 w-px bg-border" />
-          <div className="flex items-center gap-3">
-            <Truck className="size-5 text-accent" strokeWidth={2} />
-            <div>
-              <span className="font-display text-sm font-semibold text-foreground">Free Shipping</span>
-              <span className="ml-1.5 text-sm text-[var(--text-secondary,#475569)] font-body hidden sm:inline">on orders over $50</span>
-            </div>
-          </div>
-          <div className="hidden sm:block h-8 w-px bg-border" />
-          <div className="flex items-center gap-3">
-            <BadgeCheck className="size-5 text-accent" strokeWidth={2} />
-            <div>
-              <span className="font-display text-sm font-semibold text-foreground">Verified Sellers</span>
-              <span className="ml-1.5 text-sm text-[var(--text-secondary,#475569)] font-body hidden sm:inline">quality reviewed</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Value Prop                                                         */
-/* ------------------------------------------------------------------ */
-function ValueProp({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex flex-col items-start gap-3">
-      <div className="flex size-10 items-center justify-center rounded-[10px] bg-accent/[0.08] text-accent">
-        <Icon className="size-5" strokeWidth={2} />
-      </div>
-      <h3 className="font-display text-base font-semibold text-foreground">
-        {title}
-      </h3>
-      <p className="text-sm leading-relaxed text-[var(--text-secondary,#475569)] font-body">
-        {description}
-      </p>
     </div>
   );
 }
@@ -525,7 +313,7 @@ function ProductCard({ product }: { product: ProductWithSeller }) {
           group-hover:border-transparent
         "
       >
-        {/* Image — 4:3 aspect ratio */}
+        {/* Image -- 4:3 aspect ratio */}
         <div className="relative aspect-[4/3] overflow-hidden bg-[var(--background-secondary,#F8FAFC)]">
           {primaryImage ? (
             <img
@@ -544,14 +332,14 @@ function ProductCard({ product }: { product: ProductWithSeller }) {
             </div>
           )}
 
-          {/* Discount badge — top left */}
+          {/* Discount badge -- top left */}
           {hasDiscount && (
             <span className="absolute top-2.5 left-2.5 rounded-md bg-danger px-2 py-0.5 text-xs font-semibold text-white font-body">
               -{discountPercent}% OFF
             </span>
           )}
 
-          {/* Wishlist heart — top right, visible on hover */}
+          {/* Wishlist heart -- top right, visible on hover */}
           <div
             className="
               absolute top-2.5 right-2.5 flex size-8 items-center justify-center
@@ -576,7 +364,7 @@ function ProductCard({ product }: { product: ProductWithSeller }) {
             </span>
           )}
 
-          {/* Product name — 2-line clamp */}
+          {/* Product name -- 2-line clamp */}
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground font-body">
             {product.name}
           </h3>
