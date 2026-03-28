@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Button,
@@ -17,10 +18,17 @@ import { registerBuyerAction, type AuthResult } from "@/actions/auth";
 const initialState: AuthResult = {};
 
 export default function RegisterBuyerPage() {
+  const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     registerBuyerAction,
     initialState
   );
+
+  useEffect(() => {
+    if (state.redirect) {
+      router.push(state.redirect);
+    }
+  }, [state.redirect, router]);
 
   return (
     <>

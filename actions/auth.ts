@@ -7,6 +7,7 @@ import { loginSchema, buyerRegisterSchema, sellerRegisterSchema } from "@/types/
 export type AuthResult = {
   error?: string;
   success?: boolean;
+  redirect?: string;
 };
 
 export async function loginAction(prevState: AuthResult, formData: FormData): Promise<AuthResult> {
@@ -42,11 +43,11 @@ export async function loginAction(prevState: AuthResult, formData: FormData): Pr
   const userRoles = roles?.map((r) => r.role) ?? [];
 
   if (userRoles.includes("admin")) {
-    redirect("/admin/dashboard");
+    return { success: true, redirect: "/admin/dashboard" } as AuthResult;
   } else if (userRoles.includes("seller")) {
-    redirect("/seller/dashboard");
+    return { success: true, redirect: "/seller/dashboard" } as AuthResult;
   } else {
-    redirect("/");
+    return { success: true, redirect: "/" } as AuthResult;
   }
 }
 
@@ -100,7 +101,7 @@ export async function registerBuyerAction(prevState: AuthResult, formData: FormD
     }
   }
 
-  redirect("/");
+  return { success: true, redirect: "/" } as AuthResult;
 }
 
 export async function registerSellerAction(prevState: AuthResult, formData: FormData): Promise<AuthResult> {
@@ -160,7 +161,7 @@ export async function registerSellerAction(prevState: AuthResult, formData: Form
     });
   }
 
-  redirect("/seller/dashboard");
+  return { success: true, redirect: "/seller/dashboard" } as AuthResult;
 }
 
 export async function logoutAction(): Promise<void> {
