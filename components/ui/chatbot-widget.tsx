@@ -204,7 +204,7 @@ export function ChatbotWidget() {
       {/* Chat Panel */}
       <div
         className={cn(
-          "fixed bottom-24 right-6 z-[60] flex flex-col overflow-hidden",
+          "fixed bottom-36 sm:bottom-24 right-4 sm:right-6 z-[60] flex flex-col overflow-hidden",
           "rounded-[16px] border border-border bg-surface",
           "shadow-[0_16px_48px_rgba(15,23,42,0.12)]",
           "transition-all duration-250 ease-out origin-bottom-right",
@@ -225,9 +225,9 @@ export function ChatbotWidget() {
               <Bot className="size-4 text-accent" strokeWidth={2} />
             </div>
             <div>
-              <h2 className="font-display text-sm font-semibold text-foreground">
+              <span className="font-display text-sm font-semibold text-foreground">
                 LoopVerse Support
-              </h2>
+              </span>
               <p className="font-body text-[11px] text-muted">
                 Typically replies instantly
               </p>
@@ -360,7 +360,7 @@ export function ChatbotWidget() {
       <button
         onClick={toggleOpen}
         className={cn(
-          "fixed bottom-6 right-6 z-[60] flex size-14 items-center justify-center",
+          "fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-[60] flex size-14 items-center justify-center",
           "rounded-full shadow-[0_4px_16px_rgba(13,148,136,0.3)]",
           "transition-all duration-250 ease-out",
           "hover:scale-105 hover:shadow-[0_8px_24px_rgba(13,148,136,0.35)]",

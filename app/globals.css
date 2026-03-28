@@ -98,6 +98,12 @@
   --font-sans: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
 }
 
+@layer base {
+  body {
+    font-family: var(--font-body);
+  }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

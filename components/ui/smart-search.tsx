@@ -202,8 +202,8 @@ export function SmartSearch({
             "shadow-[0_1px_3px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]",
             "dark:bg-surface/90",
             compact
-              ? "rounded-full px-4 h-10"
-              : "rounded-[14px] px-5 h-14",
+              ? "rounded-full px-4 min-h-[44px]"
+              : "rounded-[14px] px-5 min-h-[56px]",
             isFocused
               ? "border-accent ring-2 ring-accent/20 shadow-[0_12px_32px_rgba(15,23,42,0.08)]"
               : "border-border hover:border-accent/40"
@@ -233,7 +233,7 @@ export function SmartSearch({
             aria-label="Search products"
             className={cn(
               "flex-1 bg-transparent text-foreground placeholder:text-muted outline-none font-body",
-              compact ? "text-sm" : "text-base"
+              compact ? "text-sm py-2.5" : "text-base py-3.5"
             )}
           />
 

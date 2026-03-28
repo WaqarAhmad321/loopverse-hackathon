@@ -115,7 +115,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
             <Link href="/products">
               <Button
                 variant="ghost"
-                size="sm"
+                size="md"
                 className={cn(
                   "font-body font-medium transition-colors duration-150 ease-out",
                   pathname === "/products" || pathname.startsWith("/products")
@@ -129,7 +129,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
             <Link href="/sellers">
               <Button
                 variant="ghost"
-                size="sm"
+                size="md"
                 className={cn(
                   "font-body font-medium transition-colors duration-150 ease-out",
                   pathname.startsWith("/sellers")
@@ -291,7 +291,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
                 <Link href="/login">
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="md"
                     className="font-body font-medium text-foreground-500"
                   >
                     Sign In
@@ -300,7 +300,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
                 <Link href="/register/buyer">
                   <Button
                     size="sm"
-                    className="font-body font-medium rounded-[10px]"
+                    className="font-body font-medium rounded-[10px] px-5 py-2.5"
                   >
                     Get Started
                   </Button>
