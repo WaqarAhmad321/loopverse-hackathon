@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createServerClient } from "@/lib/supabase/server";
 import { Star, Search, Package, Heart, ChevronRight, Home } from "lucide-react";
-import type { Product, Category, SellerProfile } from "@/types/database";
+import type { Product, Category } from "@/types/database";
 import { ITEMS_PER_PAGE } from "@/lib/constants";
 import { ProductFilters } from "./product-filters";
 import { ProductPagination } from "./product-pagination";
@@ -19,9 +19,8 @@ interface ProductsPageProps {
 
 type SortOption = "newest" | "price_asc" | "price_desc" | "rating";
 
-type ProductWithSeller = Product & {
-  seller_profiles: Pick<SellerProfile, "store_name"> | null;
-};
+/* Product type — no seller join (seller_id FK points to users, not
+   seller_profiles, so PostgREST cannot resolve the join) */
 
 /* ------------------------------------------------------------------ */
 /*  Gradient palette for product image placeholders                    */
@@ -70,7 +69,7 @@ export default async function ProductsPage({
   // Build product query
   let productQuery = supabase
     .from("products")
-    .select("*, seller_profiles(store_name)", { count: "exact" })
+    .select("*", { count: "exact" })
     .eq("status", "active");
 
   // Full-text search
@@ -117,7 +116,7 @@ export default async function ProductsPage({
   productQuery = productQuery.range(from, to);
 
   const { data: productsData, count } = await productQuery;
-  const products: ProductWithSeller[] = productsData ?? [];
+  const products: Product[] = productsData ?? [];
   const totalCount = count ?? 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
@@ -285,7 +284,7 @@ export default async function ProductsPage({
 /* ------------------------------------------------------------------ */
 /*  Product Card — matches home page card design exactly               */
 /* ------------------------------------------------------------------ */
-function ProductCard({ product }: { product: ProductWithSeller }) {
+function ProductCard({ product }: { product: Product }) {
   const hasDiscount =
     product.discount_price !== null && product.discount_price < product.price;
   const displayPrice = hasDiscount ? product.discount_price! : product.price;
@@ -296,7 +295,6 @@ function ProductCard({ product }: { product: ProductWithSeller }) {
     : 0;
 
   const primaryImage = product.images?.[0];
-  const storeName = product.seller_profiles?.store_name;
   const gradient = getPlaceholderGradient(product.id);
 
   return (
@@ -363,13 +361,6 @@ function ProductCard({ product }: { product: ProductWithSeller }) {
 
         {/* Info */}
         <div className="flex flex-1 flex-col gap-1.5 p-4">
-          {/* Seller store name */}
-          {storeName && (
-            <span className="text-xs text-muted truncate font-body">
-              {storeName}
-            </span>
-          )}
-
           {/* Product name -- 2-line clamp */}
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground font-body">
             {product.name}

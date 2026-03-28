@@ -56,19 +56,13 @@ export default async function ProductDetailPage({
   const { slug } = await params;
   const supabase = await createServerClient();
 
-  // Fetch product with seller info
+  // Fetch product with category info (seller_id FK points to users, not
+  // seller_profiles, so we query seller profile separately)
   const { data: product, error } = await supabase
     .from("products")
     .select(
       `
       *,
-      seller_profiles:seller_id (
-        id,
-        user_id,
-        store_name,
-        store_logo_url,
-        is_verified
-      ),
       users:seller_id (
         id,
         full_name,
@@ -87,6 +81,13 @@ export default async function ProductDetailPage({
   if (error || !product) {
     notFound();
   }
+
+  // Fetch seller profile separately (seller_profiles.user_id = products.seller_id)
+  const { data: sellerProfile } = await supabase
+    .from("seller_profiles")
+    .select("id, user_id, store_name, store_logo_url, is_verified")
+    .eq("user_id", product.seller_id)
+    .single();
 
   // Fetch variants
   const { data: variants } = await supabase
@@ -112,9 +113,7 @@ export default async function ProductDetailPage({
     .limit(10);
 
   // "Customers Also Bought" — powered by RPC co-purchase engine
-  let coPurchaseProducts: (Product & {
-    seller_profiles: Pick<SellerProfile, "store_name"> | null;
-  })[] = [];
+  let coPurchaseProducts: Product[] = [];
 
   const coPurchaseData = await getCoPurchasedProducts(product.id);
   const coPurchaseProductIds = coPurchaseData.map((cp) => cp.product_id);
@@ -122,7 +121,7 @@ export default async function ProductDetailPage({
   if (coPurchaseProductIds.length > 0) {
     const { data: coProducts } = await supabase
       .from("products")
-      .select("*, seller_profiles(store_name)")
+      .select("*")
       .eq("status", "active")
       .in("id", coPurchaseProductIds);
 
@@ -133,7 +132,7 @@ export default async function ProductDetailPage({
   if (coPurchaseProducts.length === 0) {
     const { data: fallbackProducts } = await supabase
       .from("products")
-      .select("*, seller_profiles(store_name)")
+      .select("*")
       .eq("status", "active")
       .eq("category_id", product.category_id)
       .neq("id", product.id)
@@ -146,20 +145,18 @@ export default async function ProductDetailPage({
   const relatedProducts = coPurchaseProducts;
 
   const typedProduct = product as Product & {
-    seller_profiles: Pick<
-      SellerProfile,
-      "id" | "user_id" | "store_name" | "store_logo_url" | "is_verified"
-    >;
     users: Pick<User, "id" | "full_name" | "avatar_url">;
     categories: { name: string; slug: string };
   };
+  const typedSellerProfile = sellerProfile as Pick<
+    SellerProfile,
+    "id" | "user_id" | "store_name" | "store_logo_url" | "is_verified"
+  > | null;
   const typedVariants: ProductVariant[] = variants ?? [];
   const typedReviews: (Review & {
     users: Pick<User, "full_name" | "avatar_url">;
   })[] = reviews ?? [];
-  const typedRelatedProducts: (Product & {
-    seller_profiles: Pick<SellerProfile, "store_name"> | null;
-  })[] = relatedProducts ?? [];
+  const typedRelatedProducts: Product[] = relatedProducts ?? [];
 
   const hasDiscount =
     typedProduct.discount_price !== null &&
@@ -263,28 +260,28 @@ export default async function ProductDetailPage({
         {/* Right: Product Info */}
         <div className="flex flex-col gap-6">
           {/* Seller Badge */}
-          {typedProduct.seller_profiles && (
+          {typedSellerProfile && (
             <Link
-              href={`/sellers/${typedProduct.seller_profiles.user_id}`}
+              href={`/sellers/${typedSellerProfile.user_id}`}
               className="group inline-flex w-fit items-center gap-2.5 rounded-full border border-border bg-surface py-1.5 pl-1.5 pr-4 transition-all duration-150 ease-out hover:border-accent/30 hover:shadow-sm"
             >
               <div className="flex size-7 items-center justify-center overflow-hidden rounded-full bg-accent/[0.08]">
-                {typedProduct.seller_profiles.store_logo_url ? (
+                {typedSellerProfile.store_logo_url ? (
                   <img
-                    src={typedProduct.seller_profiles.store_logo_url}
-                    alt={typedProduct.seller_profiles.store_name}
+                    src={typedSellerProfile.store_logo_url}
+                    alt={typedSellerProfile.store_name}
                     className="size-full object-cover"
                   />
                 ) : (
                   <span className="text-xs font-semibold text-accent font-body">
-                    {typedProduct.seller_profiles.store_name.charAt(0)}
+                    {typedSellerProfile.store_name.charAt(0)}
                   </span>
                 )}
               </div>
               <span className="text-sm font-medium text-[var(--text-secondary,#475569)] group-hover:text-foreground transition-colors duration-150 font-body">
-                {typedProduct.seller_profiles.store_name}
+                {typedSellerProfile.store_name}
               </span>
-              {typedProduct.seller_profiles.is_verified && (
+              {typedSellerProfile.is_verified && (
                 <ShieldCheck className="size-4 text-accent" />
               )}
             </Link>
@@ -600,9 +597,7 @@ export default async function ProductDetailPage({
 function RelatedProductCard({
   product,
 }: {
-  product: Product & {
-    seller_profiles: Pick<SellerProfile, "store_name"> | null;
-  };
+  product: Product;
 }) {
   const hasDiscount =
     product.discount_price !== null && product.discount_price < product.price;
@@ -614,7 +609,6 @@ function RelatedProductCard({
     : 0;
 
   const primaryImage = product.images?.[0];
-  const storeName = product.seller_profiles?.store_name;
   const gradient = getPlaceholderGradient(product.id);
 
   return (
@@ -667,11 +661,6 @@ function RelatedProductCard({
 
         {/* Info */}
         <div className="flex flex-1 flex-col gap-1.5 p-4">
-          {storeName && (
-            <span className="text-xs text-muted truncate font-body">
-              {storeName}
-            </span>
-          )}
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground font-body">
             {product.name}
           </h3>

@@ -23,7 +23,7 @@ import {
   Car,
   Flame,
 } from "lucide-react";
-import type { Category, Product, SellerProfile } from "@/types/database";
+import type { Category, Product } from "@/types/database";
 import { HeroSearch } from "./hero-search";
 import { getPersonalizedRecommendations } from "@/actions/recommendations";
 import type { LucideIcon } from "lucide-react";
@@ -65,11 +65,9 @@ function getCategoryIcon(name: string): LucideIcon {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Product type with seller join                                      */
+/*  Product type (no seller join — seller_id FK points to users, not   */
+/*  seller_profiles, so we fetch seller info separately when needed)   */
 /* ------------------------------------------------------------------ */
-type ProductWithSeller = Product & {
-  seller_profiles: Pick<SellerProfile, "store_name"> | null;
-};
 
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
@@ -88,7 +86,7 @@ export default async function BuyerHomePage() {
       .order("name"),
     supabase
       .from("products")
-      .select("*, seller_profiles(store_name)")
+      .select("*")
       .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(8),
@@ -96,11 +94,11 @@ export default async function BuyerHomePage() {
 
   const categories: Pick<Category, "id" | "name" | "slug" | "image_url">[] =
     categoriesResult.data ?? [];
-  const products: ProductWithSeller[] = productsResult.data ?? [];
+  const products: Product[] = productsResult.data ?? [];
   const featuredProductIds = new Set(products.map((p) => p.id));
 
   /* --- Recommended products (AI-powered via RPC) --- */
-  let recommendedProducts: ProductWithSeller[] = [];
+  let recommendedProducts: Product[] = [];
 
   const recommendations = await getPersonalizedRecommendations();
   const recommendedIds = recommendations
@@ -110,7 +108,7 @@ export default async function BuyerHomePage() {
   if (recommendedIds.length > 0) {
     const { data: recProducts } = await supabase
       .from("products")
-      .select("*, seller_profiles(store_name)")
+      .select("*")
       .eq("status", "active")
       .in("id", recommendedIds)
       .limit(8);
@@ -122,7 +120,7 @@ export default async function BuyerHomePage() {
   if (recommendedProducts.length === 0) {
     const { data: fallbackProducts } = await supabase
       .from("products")
-      .select("*, seller_profiles(store_name)")
+      .select("*")
       .eq("status", "active")
       .order("avg_rating", { ascending: false })
       .limit(12);
@@ -288,7 +286,7 @@ function getPlaceholderGradient(id: string): string {
   return PLACEHOLDER_GRADIENTS[Math.abs(hash) % PLACEHOLDER_GRADIENTS.length];
 }
 
-function ProductCard({ product }: { product: ProductWithSeller }) {
+function ProductCard({ product }: { product: Product }) {
   const hasDiscount =
     product.discount_price !== null && product.discount_price < product.price;
   const displayPrice = hasDiscount ? product.discount_price! : product.price;
@@ -299,7 +297,6 @@ function ProductCard({ product }: { product: ProductWithSeller }) {
     : 0;
 
   const primaryImage = product.images?.[0];
-  const storeName = product.seller_profiles?.store_name;
   const gradient = getPlaceholderGradient(product.id);
 
   return (
@@ -357,13 +354,6 @@ function ProductCard({ product }: { product: ProductWithSeller }) {
 
         {/* Info */}
         <div className="flex flex-1 flex-col gap-1.5 p-4">
-          {/* Seller store name */}
-          {storeName && (
-            <span className="text-xs text-muted truncate font-body">
-              {storeName}
-            </span>
-          )}
-
           {/* Product name -- 2-line clamp */}
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground font-body">
             {product.name}
