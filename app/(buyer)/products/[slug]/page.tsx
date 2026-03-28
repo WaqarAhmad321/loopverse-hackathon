@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Home,
   Heart,
+  Users,
 } from "lucide-react";
 import type {
   Product,
@@ -108,15 +109,61 @@ export default async function ProductDetailPage({
     .order("created_at", { ascending: false })
     .limit(10);
 
-  // Fetch related products (same category, exclude current)
-  const { data: relatedProducts } = await supabase
-    .from("products")
-    .select("*, seller_profiles(store_name)")
-    .eq("status", "active")
-    .eq("category_id", product.category_id)
-    .neq("id", product.id)
-    .order("avg_rating", { ascending: false })
-    .limit(4);
+  // "Customers Also Bought" — co-purchase heuristic
+  // 1. Find orders that contain this product
+  // 2. Find other products in those orders
+  // 3. Fallback to same-category products if no co-purchase data
+  let coPurchaseProducts: (Product & {
+    seller_profiles: Pick<SellerProfile, "store_name"> | null;
+  })[] = [];
+
+  const { data: ordersWithThisProduct } = await supabase
+    .from("order_items")
+    .select("order_id")
+    .eq("product_id", product.id)
+    .limit(50);
+
+  const coPurchaseOrderIds = (ordersWithThisProduct ?? []).map((oi) => oi.order_id);
+
+  if (coPurchaseOrderIds.length > 0) {
+    // Find other product IDs bought in the same orders
+    const { data: coPurchasedItems } = await supabase
+      .from("order_items")
+      .select("product_id")
+      .in("order_id", coPurchaseOrderIds)
+      .neq("product_id", product.id)
+      .limit(50);
+
+    const coPurchaseProductIds = [
+      ...new Set((coPurchasedItems ?? []).map((item) => item.product_id)),
+    ].slice(0, 4);
+
+    if (coPurchaseProductIds.length > 0) {
+      const { data: coProducts } = await supabase
+        .from("products")
+        .select("*, seller_profiles(store_name)")
+        .eq("status", "active")
+        .in("id", coPurchaseProductIds);
+
+      coPurchaseProducts = coProducts ?? [];
+    }
+  }
+
+  // Fallback: same-category products if no co-purchase data
+  if (coPurchaseProducts.length === 0) {
+    const { data: fallbackProducts } = await supabase
+      .from("products")
+      .select("*, seller_profiles(store_name)")
+      .eq("status", "active")
+      .eq("category_id", product.category_id)
+      .neq("id", product.id)
+      .order("avg_rating", { ascending: false })
+      .limit(4);
+
+    coPurchaseProducts = fallbackProducts ?? [];
+  }
+
+  const relatedProducts = coPurchaseProducts;
 
   const typedProduct = product as Product & {
     seller_profiles: Pick<
@@ -523,17 +570,20 @@ export default async function ProductDetailPage({
       </section>
 
       {/* ================================================================ */}
-      {/*  RELATED PRODUCTS                                                */}
+      {/*  CUSTOMERS ALSO BOUGHT                                           */}
       {/* ================================================================ */}
       {typedRelatedProducts.length > 0 && (
         <section className="mt-16">
           <div className="mb-8 flex items-end justify-between">
             <div>
-              <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
-                Related Products
-              </h2>
+              <div className="mb-1 flex items-center gap-2">
+                <Users className="size-5 text-accent" strokeWidth={2} />
+                <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
+                  Customers Also Bought
+                </h2>
+              </div>
               <p className="mt-1 text-sm text-muted font-body">
-                You might also like
+                Frequently purchased together
               </p>
             </div>
             {typedProduct.categories && (

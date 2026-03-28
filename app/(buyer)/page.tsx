@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerClient, getUser } from "@/lib/supabase/server";
 import { Card, Button, Chip } from "@heroui/react";
 import {
   Search,
@@ -26,6 +26,9 @@ import {
   PawPrint,
   Baby,
   Car,
+  Flame,
+  Gift,
+  Store,
 } from "lucide-react";
 import type { Category, Product, SellerProfile } from "@/types/database";
 import { SITE_NAME } from "@/lib/constants";
@@ -78,9 +81,50 @@ type ProductWithSeller = Product & {
 /* ------------------------------------------------------------------ */
 /*  Page                                                               */
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/*  Promotional banner data (hardcoded for now)                        */
+/* ------------------------------------------------------------------ */
+interface PromoBanner {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+  gradient: string;
+  icon: LucideIcon;
+}
+
+const PROMO_BANNERS: PromoBanner[] = [
+  {
+    id: "new-arrivals",
+    title: "New Arrivals",
+    description: "Fresh drops from top sellers this week. Be the first to shop.",
+    href: "/products?sort=newest",
+    gradient: "from-teal-600 to-emerald-500",
+    icon: Sparkles,
+  },
+  {
+    id: "free-shipping",
+    title: "Free Shipping",
+    description: "On all orders over $50. No code needed, applied at checkout.",
+    href: "/products",
+    gradient: "from-amber-500 to-orange-500",
+    icon: Gift,
+  },
+  {
+    id: "seller-spotlight",
+    title: "Seller Spotlight",
+    description: "Discover handpicked stores with exceptional quality and reviews.",
+    href: "/products",
+    gradient: "from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800",
+    icon: Store,
+  },
+];
+
 export default async function BuyerHomePage() {
   const supabase = await createServerClient();
+  const currentUser = await getUser();
 
+  /* --- Fetch featured products + categories in parallel --- */
   const [categoriesResult, productsResult] = await Promise.all([
     supabase
       .from("categories")
@@ -98,6 +142,75 @@ export default async function BuyerHomePage() {
   const categories: Pick<Category, "id" | "name" | "slug" | "image_url">[] =
     categoriesResult.data ?? [];
   const products: ProductWithSeller[] = productsResult.data ?? [];
+  const featuredProductIds = new Set(products.map((p) => p.id));
+
+  /* --- Recommended products (heuristic AI) --- */
+  let recommendedProducts: ProductWithSeller[] = [];
+
+  if (currentUser) {
+    // Logged-in: find categories from user's past orders, then fetch products from those categories
+    const { data: orderItems } = await supabase
+      .from("order_items")
+      .select("product_id, products(category_id)")
+      .eq("seller_id", currentUser.id)
+      .limit(1);
+
+    // Use a simpler approach: get category IDs from the user's past order items
+    const { data: userOrderItems } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("buyer_id", currentUser.id)
+      .limit(20);
+
+    const userOrderIds = (userOrderItems ?? []).map((o) => o.id);
+
+    if (userOrderIds.length > 0) {
+      const { data: orderedProducts } = await supabase
+        .from("order_items")
+        .select("products(category_id)")
+        .in("order_id", userOrderIds)
+        .limit(50);
+
+      const categoryIds = [
+        ...new Set(
+          (orderedProducts ?? [])
+            .map((item) => {
+              const prod = item.products as unknown as { category_id: string } | null;
+              return prod?.category_id;
+            })
+            .filter((id): id is string => Boolean(id))
+        ),
+      ];
+
+      if (categoryIds.length > 0) {
+        const { data: recProducts } = await supabase
+          .from("products")
+          .select("*, seller_profiles(store_name)")
+          .eq("status", "active")
+          .in("category_id", categoryIds)
+          .order("avg_rating", { ascending: false })
+          .limit(12);
+
+        recommendedProducts = (recProducts ?? []).filter(
+          (p) => !featuredProductIds.has(p.id)
+        ).slice(0, 4);
+      }
+    }
+  }
+
+  // Fallback: if no personalized recommendations, show random active products not in featured
+  if (recommendedProducts.length === 0) {
+    const { data: randomProducts } = await supabase
+      .from("products")
+      .select("*, seller_profiles(store_name)")
+      .eq("status", "active")
+      .order("avg_rating", { ascending: false })
+      .limit(12);
+
+    recommendedProducts = (randomProducts ?? [])
+      .filter((p) => !featuredProductIds.has(p.id))
+      .slice(0, 4);
+  }
 
   return (
     <div className="flex flex-col">
@@ -142,6 +255,71 @@ export default async function BuyerHomePage() {
         {/* Decorative gradient blobs */}
         <div className="pointer-events-none absolute -top-32 -right-32 size-[500px] rounded-full bg-accent/[0.06] blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-20 size-[300px] rounded-full bg-accent/[0.04] blur-3xl" />
+      </section>
+
+      {/* ============================================================ */}
+      {/*  DEALS & OFFERS — Promotional Banners                        */}
+      {/* ============================================================ */}
+      <section className="mx-auto w-full max-w-[1200px] px-6 pt-16 pb-4 lg:px-8">
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
+              Deals & Offers
+            </h2>
+            <p className="mt-1 text-sm text-muted font-body">
+              Limited-time promotions you don&apos;t want to miss
+            </p>
+          </div>
+        </div>
+
+        {/* Horizontal scroll on mobile, grid on desktop */}
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
+          {PROMO_BANNERS.map((banner) => {
+            const BannerIcon = banner.icon;
+            return (
+              <Link
+                key={banner.id}
+                href={banner.href}
+                className="group shrink-0 w-[300px] md:w-auto"
+              >
+                <div
+                  className={`
+                    relative flex h-full min-h-[180px] flex-col justify-between overflow-hidden
+                    rounded-[10px] bg-gradient-to-br ${banner.gradient} p-6
+                    shadow-[0_1px_3px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]
+                    transition-all duration-150 ease-out
+                    group-hover:-translate-y-0.5 group-hover:shadow-[0_12px_32px_rgba(15,23,42,0.12)]
+                  `}
+                >
+                  {/* Background icon */}
+                  <BannerIcon
+                    className="pointer-events-none absolute -right-3 -bottom-3 size-28 text-white/10"
+                    strokeWidth={1}
+                  />
+
+                  <div className="relative z-10">
+                    <div className="mb-3 flex size-9 items-center justify-center rounded-[8px] bg-white/20 backdrop-blur-sm">
+                      <BannerIcon className="size-4.5 text-white" strokeWidth={2} />
+                    </div>
+                    <h3 className="font-display text-lg font-bold text-white">
+                      {banner.title}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-relaxed text-white/80 font-body">
+                      {banner.description}
+                    </p>
+                  </div>
+
+                  <div className="relative z-10 mt-4">
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white font-body transition-all duration-150 group-hover:gap-2.5">
+                      Shop Now
+                      <ArrowRight className="size-4" />
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       {/* ============================================================ */}
@@ -235,6 +413,42 @@ export default async function BuyerHomePage() {
           </div>
         )}
       </section>
+
+      {/* ============================================================ */}
+      {/*  RECOMMENDED FOR YOU                                         */}
+      {/* ============================================================ */}
+      {recommendedProducts.length > 0 && (
+        <section className="mx-auto w-full max-w-[1200px] px-6 pb-16 lg:px-8">
+          <div className="mb-8 flex items-end justify-between">
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <Flame className="size-5 text-accent" strokeWidth={2} />
+                <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
+                  Recommended for You
+                </h2>
+              </div>
+              <p className="mt-1 text-sm text-muted font-body">
+                {currentUser
+                  ? "Based on your shopping history"
+                  : "Popular picks across the marketplace"}
+              </p>
+            </div>
+            <Link
+              href="/products"
+              className="group flex items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-[var(--accent-hover,#0F766E)] font-body"
+            >
+              Explore more
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+            {recommendedProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ============================================================ */}
       {/*  VALUE PROPS                                                 */}

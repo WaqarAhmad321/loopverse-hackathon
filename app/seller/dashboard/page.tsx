@@ -16,6 +16,7 @@ import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
 } from "@/lib/constants";
+import { SalesOverviewChart } from "./sales-overview-chart";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -163,12 +164,19 @@ export default async function SellerDashboardPage() {
     .single();
 
   // Fetch stats in parallel
+  // Build the last 7 days date range
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
   const [
     revenueResult,
     ordersResult,
     pendingResult,
     lowStockResult,
     recentOrdersResult,
+    salesChartResult,
   ] = await Promise.all([
     supabase
       .from("order_items")
@@ -205,6 +213,12 @@ export default async function SellerDashboardPage() {
       .eq("order_items.seller_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10),
+
+    supabase
+      .from("order_items")
+      .select("total_price, created_at:orders!inner(created_at)")
+      .eq("seller_id", user.id)
+      .gte("orders.created_at", sevenDaysAgo.toISOString()),
   ]);
 
   const totalRevenue =
@@ -221,6 +235,35 @@ export default async function SellerDashboardPage() {
   const lowStockProducts = (lowStockResult.data ?? []) as LowStockProduct[];
   const recentOrders = (recentOrdersResult.data ??
     []) as unknown as RecentOrder[];
+
+  // Build sales chart data for last 7 days
+  const salesByDay = new Map<string, number>();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(sevenDaysAgo);
+    d.setDate(d.getDate() + i);
+    const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    salesByDay.set(key, 0);
+  }
+
+  if (salesChartResult.data) {
+    for (const item of salesChartResult.data) {
+      const record = item as unknown as {
+        total_price: number;
+        created_at: { created_at: string };
+      };
+      const dateStr = new Date(record.created_at.created_at).toLocaleDateString(
+        "en-US",
+        { month: "short", day: "numeric" }
+      );
+      if (salesByDay.has(dateStr)) {
+        salesByDay.set(dateStr, (salesByDay.get(dateStr) ?? 0) + (record.total_price ?? 0));
+      }
+    }
+  }
+
+  const salesChartData = Array.from(salesByDay.entries()).map(
+    ([date, revenue]) => ({ date, revenue })
+  );
 
   const storeName = sellerProfile?.store_name ?? "your store";
 
@@ -285,6 +328,21 @@ export default async function SellerDashboardPage() {
           }
         />
       </div>
+
+      {/* Sales Overview */}
+      <section>
+        <div className="rounded-[10px] bg-[var(--surface)] p-6 shadow-[var(--surface-shadow)]">
+          <div className="mb-5">
+            <h2 className="font-display text-lg font-semibold text-[color:var(--foreground)]">
+              Sales Overview
+            </h2>
+            <p className="mt-1 font-body text-sm text-[color:var(--muted)]">
+              Last 7 days
+            </p>
+          </div>
+          <SalesOverviewChart data={salesChartData} />
+        </div>
+      </section>
 
       {/* Recent Orders */}
       <section>

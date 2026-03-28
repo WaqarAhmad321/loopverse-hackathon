@@ -1,39 +1,96 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ImagePlus, X, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { productSchema, type ProductFormData } from "@/types/forms";
-import { createProduct, uploadProductImages } from "@/actions/products";
-import type { Category } from "@/types/database";
+import { updateProduct, uploadProductImages } from "@/actions/products";
+import { createClient } from "@/lib/supabase/client";
+import type { Category, ProductVariant } from "@/types/database";
 
-export default function NewProductPage() {
+interface VariantRow {
+  id?: string;
+  name: string;
+  value: string;
+  price_modifier: number;
+  stock_quantity: number;
+  sku: string;
+}
+
+export default function EditProductPage() {
   const router = useRouter();
+  const params = useParams();
+  const productId = params.id as string;
   const [isPending, startTransition] = useTransition();
   const [categories, setCategories] = useState<Category[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [variants, setVariants] = useState<
-    { name: string; value: string; price_modifier: number; stock_quantity: number; sku: string }[]
-  >([]);
+  const [loading, setLoading] = useState(true);
+  const [variants, setVariants] = useState<VariantRow[]>([]);
+  const [existingVariantIds, setExistingVariantIds] = useState<string[]>([]);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm({
     resolver: zodResolver(productSchema),
-    defaultValues: {
-      stock_quantity: 0,
-    },
   });
 
-  // Fetch categories client-side
+  const fetchProduct = useCallback(async () => {
+    const supabase = createClient();
+
+    const [productResult, variantsResult] = await Promise.all([
+      supabase
+        .from("products")
+        .select("*")
+        .eq("id", productId)
+        .single(),
+      supabase
+        .from("product_variants")
+        .select("*")
+        .eq("product_id", productId),
+    ]);
+
+    if (productResult.data) {
+      const p = productResult.data;
+      reset({
+        name: p.name,
+        description: p.description,
+        category_id: p.category_id,
+        price: p.price,
+        discount_price: p.discount_price ?? undefined,
+        sku: p.sku,
+        stock_quantity: p.stock_quantity,
+      });
+      setExistingImages(p.images ?? []);
+    }
+
+    if (variantsResult.data) {
+      const mapped: VariantRow[] = variantsResult.data.map(
+        (v: ProductVariant) => ({
+          id: v.id,
+          name: v.name,
+          value: v.value,
+          price_modifier: v.price_modifier,
+          stock_quantity: v.stock_quantity,
+          sku: v.sku,
+        })
+      );
+      setVariants(mapped);
+      setExistingVariantIds(mapped.map((v) => v.id).filter(Boolean) as string[]);
+    }
+
+    setLoading(false);
+  }, [productId, reset]);
+
   useEffect(() => {
     async function fetchCategories() {
       try {
@@ -43,32 +100,34 @@ export default function NewProductPage() {
           setCategories(data);
         }
       } catch {
-        // Categories will be empty, user can retry
+        // Categories will be empty
       }
     }
     fetchCategories();
-  }, []);
+    fetchProduct();
+  }, [fetchProduct]);
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
 
-    const newFiles = [...imageFiles, ...files].slice(0, 5);
+    const totalSlots = 5 - existingImages.length;
+    const newFiles = [...imageFiles, ...files].slice(0, totalSlots);
     setImageFiles(newFiles);
 
-    // Generate previews
     const previews = newFiles.map((file) => URL.createObjectURL(file));
-    // Revoke old previews
     imagePreviews.forEach((url) => URL.revokeObjectURL(url));
     setImagePreviews(previews);
   }
 
-  function removeImage(index: number) {
+  function removeNewImage(index: number) {
     URL.revokeObjectURL(imagePreviews[index]);
-    const newFiles = imageFiles.filter((_, i) => i !== index);
-    const newPreviews = imagePreviews.filter((_, i) => i !== index);
-    setImageFiles(newFiles);
-    setImagePreviews(newPreviews);
+    setImageFiles(imageFiles.filter((_, i) => i !== index));
+    setImagePreviews(imagePreviews.filter((_, i) => i !== index));
+  }
+
+  function removeExistingImage(index: number) {
+    setExistingImages(existingImages.filter((_, i) => i !== index));
   }
 
   function addVariant() {
@@ -82,11 +141,7 @@ export default function NewProductPage() {
     setVariants(variants.filter((_, i) => i !== index));
   }
 
-  function updateVariant(
-    index: number,
-    field: keyof (typeof variants)[number],
-    val: string
-  ) {
+  function updateVariant(index: number, field: keyof VariantRow, val: string) {
     setVariants(
       variants.map((v, i) => {
         if (i !== index) return v;
@@ -103,9 +158,8 @@ export default function NewProductPage() {
     setServerError(null);
 
     startTransition(async () => {
-      let imageUrls: string[] = [];
+      let newImageUrls: string[] = [];
 
-      // Upload images first
       if (imageFiles.length > 0) {
         setUploadProgress(true);
         const uploadForm = new FormData();
@@ -118,10 +172,11 @@ export default function NewProductPage() {
           setServerError(uploadResult.error);
           return;
         }
-        imageUrls = uploadResult.urls;
+        newImageUrls = uploadResult.urls;
       }
 
-      // Create product
+      const allImages = [...existingImages, ...newImageUrls];
+
       const formData = new FormData();
       formData.set("name", typedData.name);
       formData.set("description", typedData.description);
@@ -132,12 +187,18 @@ export default function NewProductPage() {
       }
       formData.set("sku", typedData.sku);
       formData.set("stock_quantity", typedData.stock_quantity.toString());
-      formData.set("images", JSON.stringify(imageUrls));
-      if (variants.length > 0) {
-        formData.set("variants", JSON.stringify(variants));
-      }
+      formData.set("images", JSON.stringify(allImages));
+      formData.set("variants", JSON.stringify(variants));
+      formData.set(
+        "removed_variant_ids",
+        JSON.stringify(
+          existingVariantIds.filter(
+            (eid) => !variants.some((v) => v.id === eid)
+          )
+        )
+      );
 
-      const result = await createProduct(formData);
+      const result = await updateProduct(productId, formData);
 
       if (result.error) {
         setServerError(result.error);
@@ -146,6 +207,16 @@ export default function NewProductPage() {
 
       router.push("/seller/products");
     });
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <p className="font-body text-sm text-[color:var(--muted)]">
+          Loading product...
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -160,10 +231,10 @@ export default function NewProductPage() {
         </Link>
         <div>
           <h1 className="font-display text-2xl font-bold text-[color:var(--foreground)]">
-            Add New Product
+            Edit Product
           </h1>
           <p className="mt-1 font-body text-sm text-[color:var(--muted)]">
-            Fill in the details to list a new product
+            Update the details of your product
           </p>
         </div>
       </div>
@@ -378,7 +449,7 @@ export default function NewProductPage() {
             <div className="mt-5 space-y-3">
               {variants.map((variant, index) => (
                 <div
-                  key={`variant-${index}`}
+                  key={variant.id ?? `new-${index}`}
                   className="grid grid-cols-1 gap-3 rounded-[6px] border border-[var(--border)] p-4 sm:grid-cols-6"
                 >
                   <div className="space-y-1.5">
@@ -484,16 +555,16 @@ export default function NewProductPage() {
             </p>
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-            {imagePreviews.map((preview, index) => (
-              <div key={preview} className="group relative aspect-square">
+            {existingImages.map((url, index) => (
+              <div key={`existing-${index}`} className="group relative aspect-square">
                 <img
-                  src={preview}
-                  alt={`Preview ${index + 1}`}
+                  src={url}
+                  alt={`Product image ${index + 1}`}
                   className="size-full rounded-[10px] object-cover"
                 />
                 <button
                   type="button"
-                  onClick={() => removeImage(index)}
+                  onClick={() => removeExistingImage(index)}
                   className="absolute -right-1.5 -top-1.5 flex size-6 items-center justify-center rounded-full bg-[var(--danger)] text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100"
                   aria-label={`Remove image ${index + 1}`}
                 >
@@ -507,7 +578,25 @@ export default function NewProductPage() {
               </div>
             ))}
 
-            {imageFiles.length < 5 && (
+            {imagePreviews.map((preview, index) => (
+              <div key={preview} className="group relative aspect-square">
+                <img
+                  src={preview}
+                  alt={`New image ${index + 1}`}
+                  className="size-full rounded-[10px] object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeNewImage(index)}
+                  className="absolute -right-1.5 -top-1.5 flex size-6 items-center justify-center rounded-full bg-[var(--danger)] text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100"
+                  aria-label={`Remove new image ${index + 1}`}
+                >
+                  <X className="size-3.5" strokeWidth={2.5} />
+                </button>
+              </div>
+            ))}
+
+            {existingImages.length + imageFiles.length < 5 && (
               <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-[10px] border-2 border-dashed border-[var(--border)] bg-[var(--default)]/30 transition-colors duration-150 hover:border-[var(--accent)] hover:bg-[color:var(--accent)]/5">
                 <ImagePlus
                   className="mb-1.5 size-6 text-[color:var(--muted)]"
@@ -544,8 +633,8 @@ export default function NewProductPage() {
             {uploadProgress
               ? "Uploading images..."
               : isPending
-                ? "Creating..."
-                : "Create Product"}
+                ? "Saving..."
+                : "Save Changes"}
           </button>
         </div>
       </form>

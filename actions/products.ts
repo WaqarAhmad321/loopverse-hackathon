@@ -96,6 +96,36 @@ export async function createProduct(formData: FormData) {
     return { error: error.message };
   }
 
+  // Handle variants
+  const variantsRaw = formData.get("variants");
+  if (variantsRaw) {
+    try {
+      const variants = JSON.parse(variantsRaw as string) as {
+        name: string;
+        value: string;
+        price_modifier: number;
+        stock_quantity: number;
+        sku: string;
+      }[];
+
+      const validVariants = variants.filter((v) => v.name && v.value);
+      if (validVariants.length > 0) {
+        await supabase.from("product_variants").insert(
+          validVariants.map((v) => ({
+            product_id: data.id,
+            name: v.name,
+            value: v.value,
+            price_modifier: v.price_modifier,
+            stock_quantity: v.stock_quantity,
+            sku: v.sku,
+          }))
+        );
+      }
+    } catch {
+      // Ignore variant parse errors — product was already created
+    }
+  }
+
   revalidatePath("/seller/products");
   return { success: true, productId: data.id };
 }
@@ -171,6 +201,67 @@ export async function updateProduct(productId: string, formData: FormData) {
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Handle variants
+  const variantsRaw = formData.get("variants");
+  const removedVariantIdsRaw = formData.get("removed_variant_ids");
+
+  if (removedVariantIdsRaw) {
+    try {
+      const removedIds = JSON.parse(removedVariantIdsRaw as string) as string[];
+      if (removedIds.length > 0) {
+        await supabase
+          .from("product_variants")
+          .delete()
+          .in("id", removedIds)
+          .eq("product_id", productId);
+      }
+    } catch {
+      // Ignore parse errors for removed variant ids
+    }
+  }
+
+  if (variantsRaw) {
+    try {
+      const variants = JSON.parse(variantsRaw as string) as {
+        id?: string;
+        name: string;
+        value: string;
+        price_modifier: number;
+        stock_quantity: number;
+        sku: string;
+      }[];
+
+      for (const variant of variants) {
+        if (variant.id) {
+          // Update existing variant
+          await supabase
+            .from("product_variants")
+            .update({
+              name: variant.name,
+              value: variant.value,
+              price_modifier: variant.price_modifier,
+              stock_quantity: variant.stock_quantity,
+              sku: variant.sku,
+            })
+            .eq("id", variant.id)
+            .eq("product_id", productId);
+        } else if (variant.name && variant.value) {
+          // Insert new variant
+          await supabase.from("product_variants").insert({
+            product_id: productId,
+            name: variant.name,
+            value: variant.value,
+            price_modifier: variant.price_modifier,
+            stock_quantity: variant.stock_quantity,
+            sku: variant.sku,
+          });
+        }
+      }
+    } catch {
+      // Ignore parse errors for variants
+    }
   }
 
   revalidatePath("/seller/products");
