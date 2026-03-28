@@ -5,16 +5,9 @@ import { BadgeCheck, MapPin, Store } from "lucide-react";
 export default async function SellersPage() {
   const supabase = await createServerClient();
 
-  const { data: sellers } = await supabase
-    .from("seller_profiles")
-    .select("*, users!inner(full_name, avatar_url)")
-    .eq("is_verified", false)
-    .order("created_at", { ascending: false });
-
-  // Also get unverified sellers (all sellers for now)
   const { data: allSellers } = await supabase
     .from("seller_profiles")
-    .select("*, users!inner(full_name, avatar_url)")
+    .select("*")
     .order("created_at", { ascending: false });
 
   const sellerList = allSellers ?? [];
@@ -51,8 +44,7 @@ export default async function SellersPage() {
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {sellerList.map((seller) => {
-            const user = seller.users as { full_name: string; avatar_url: string | null };
-            const initials = user.full_name
+            const initials = seller.store_name
               ?.split(" ")
               .map((n: string) => n[0])
               .join("")
@@ -87,7 +79,7 @@ export default async function SellersPage() {
                       )}
                     </div>
                     <p className="mt-0.5 text-sm text-[var(--muted)] font-body">
-                      by {user.full_name}
+                      Seller on LoopVerse
                     </p>
                   </div>
                 </div>
