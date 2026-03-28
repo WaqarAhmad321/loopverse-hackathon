@@ -22,6 +22,8 @@ import type {
 import { AddToCartForm } from "./add-to-cart-form";
 import { AddToWishlistButton } from "./add-to-wishlist-button";
 import { ImageGallery } from "./image-gallery";
+import { ProductViewTracker } from "@/components/ui/product-view-tracker";
+import { getCoPurchasedProducts } from "@/actions/recommendations";
 
 interface ProductDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -109,44 +111,22 @@ export default async function ProductDetailPage({
     .order("created_at", { ascending: false })
     .limit(10);
 
-  // "Customers Also Bought" — co-purchase heuristic
-  // 1. Find orders that contain this product
-  // 2. Find other products in those orders
-  // 3. Fallback to same-category products if no co-purchase data
+  // "Customers Also Bought" — powered by RPC co-purchase engine
   let coPurchaseProducts: (Product & {
     seller_profiles: Pick<SellerProfile, "store_name"> | null;
   })[] = [];
 
-  const { data: ordersWithThisProduct } = await supabase
-    .from("order_items")
-    .select("order_id")
-    .eq("product_id", product.id)
-    .limit(50);
+  const coPurchaseData = await getCoPurchasedProducts(product.id);
+  const coPurchaseProductIds = coPurchaseData.map((cp) => cp.product_id);
 
-  const coPurchaseOrderIds = (ordersWithThisProduct ?? []).map((oi) => oi.order_id);
+  if (coPurchaseProductIds.length > 0) {
+    const { data: coProducts } = await supabase
+      .from("products")
+      .select("*, seller_profiles(store_name)")
+      .eq("status", "active")
+      .in("id", coPurchaseProductIds);
 
-  if (coPurchaseOrderIds.length > 0) {
-    // Find other product IDs bought in the same orders
-    const { data: coPurchasedItems } = await supabase
-      .from("order_items")
-      .select("product_id")
-      .in("order_id", coPurchaseOrderIds)
-      .neq("product_id", product.id)
-      .limit(50);
-
-    const coPurchaseProductIds = [
-      ...new Set((coPurchasedItems ?? []).map((item) => item.product_id)),
-    ].slice(0, 4);
-
-    if (coPurchaseProductIds.length > 0) {
-      const { data: coProducts } = await supabase
-        .from("products")
-        .select("*, seller_profiles(store_name)")
-        .eq("status", "active")
-        .in("id", coPurchaseProductIds);
-
-      coPurchaseProducts = coProducts ?? [];
-    }
+    coPurchaseProducts = coProducts ?? [];
   }
 
   // Fallback: same-category products if no co-purchase data
@@ -209,6 +189,12 @@ export default async function ProductDetailPage({
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
+      {/* Track product view for AI recommendations */}
+      <ProductViewTracker
+        productId={typedProduct.id}
+        categoryId={typedProduct.category_id}
+      />
+
       {/* ── Breadcrumbs ── */}
       <nav aria-label="Breadcrumb" className="mb-8">
         <ol className="flex items-center gap-1.5 text-sm font-body">

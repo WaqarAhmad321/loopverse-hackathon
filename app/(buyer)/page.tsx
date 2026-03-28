@@ -33,6 +33,7 @@ import {
 import type { Category, Product, SellerProfile } from "@/types/database";
 import { SITE_NAME } from "@/lib/constants";
 import { HeroSearch } from "./hero-search";
+import { getPersonalizedRecommendations } from "@/actions/recommendations";
 import type { LucideIcon } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -144,70 +145,35 @@ export default async function BuyerHomePage() {
   const products: ProductWithSeller[] = productsResult.data ?? [];
   const featuredProductIds = new Set(products.map((p) => p.id));
 
-  /* --- Recommended products (heuristic AI) --- */
+  /* --- Recommended products (AI-powered via RPC) --- */
   let recommendedProducts: ProductWithSeller[] = [];
 
-  if (currentUser) {
-    // Logged-in: find categories from user's past orders, then fetch products from those categories
-    const { data: orderItems } = await supabase
-      .from("order_items")
-      .select("product_id, products(category_id)")
-      .eq("seller_id", currentUser.id)
-      .limit(1);
+  const recommendations = await getPersonalizedRecommendations();
+  const recommendedIds = recommendations
+    .map((r) => r.product_id)
+    .filter((id) => !featuredProductIds.has(id));
 
-    // Use a simpler approach: get category IDs from the user's past order items
-    const { data: userOrderItems } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("buyer_id", currentUser.id)
-      .limit(20);
+  if (recommendedIds.length > 0) {
+    const { data: recProducts } = await supabase
+      .from("products")
+      .select("*, seller_profiles(store_name)")
+      .eq("status", "active")
+      .in("id", recommendedIds)
+      .limit(8);
 
-    const userOrderIds = (userOrderItems ?? []).map((o) => o.id);
-
-    if (userOrderIds.length > 0) {
-      const { data: orderedProducts } = await supabase
-        .from("order_items")
-        .select("products(category_id)")
-        .in("order_id", userOrderIds)
-        .limit(50);
-
-      const categoryIds = [
-        ...new Set(
-          (orderedProducts ?? [])
-            .map((item) => {
-              const prod = item.products as unknown as { category_id: string } | null;
-              return prod?.category_id;
-            })
-            .filter((id): id is string => Boolean(id))
-        ),
-      ];
-
-      if (categoryIds.length > 0) {
-        const { data: recProducts } = await supabase
-          .from("products")
-          .select("*, seller_profiles(store_name)")
-          .eq("status", "active")
-          .in("category_id", categoryIds)
-          .order("avg_rating", { ascending: false })
-          .limit(12);
-
-        recommendedProducts = (recProducts ?? []).filter(
-          (p) => !featuredProductIds.has(p.id)
-        ).slice(0, 4);
-      }
-    }
+    recommendedProducts = recProducts ?? [];
   }
 
-  // Fallback: if no personalized recommendations, show random active products not in featured
+  // Fallback: if no AI recommendations, show top-rated products not in featured
   if (recommendedProducts.length === 0) {
-    const { data: randomProducts } = await supabase
+    const { data: fallbackProducts } = await supabase
       .from("products")
       .select("*, seller_profiles(store_name)")
       .eq("status", "active")
       .order("avg_rating", { ascending: false })
       .limit(12);
 
-    recommendedProducts = (randomProducts ?? [])
+    recommendedProducts = (fallbackProducts ?? [])
       .filter((p) => !featuredProductIds.has(p.id))
       .slice(0, 4);
   }

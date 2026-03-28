@@ -8,6 +8,7 @@ import { ArrowLeft, ImagePlus, X, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { productSchema, type ProductFormData } from "@/types/forms";
 import { createProduct, uploadProductImages } from "@/actions/products";
+import { PricingSuggestions } from "@/components/ui/pricing-suggestions";
 import type { Category } from "@/types/database";
 
 export default function NewProductPage() {
@@ -25,6 +26,7 @@ export default function NewProductPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(productSchema),
@@ -32,6 +34,9 @@ export default function NewProductPage() {
       stock_quantity: 0,
     },
   });
+
+  const watchedCategoryId = watch("category_id");
+  const watchedPrice = watch("price");
 
   // Fetch categories client-side
   useEffect(() => {
@@ -304,6 +309,14 @@ export default function NewProductPage() {
                 placeholder="0.00"
                 {...register("discount_price")}
                 className="w-full rounded-[6px] border border-[var(--border)] bg-[var(--field-background)] px-3 py-2.5 font-body text-sm tabular-nums text-[var(--field-foreground)] placeholder:text-[var(--field-placeholder)] transition-colors duration-150 focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
+            </div>
+
+            {/* AI Pricing Suggestions — spans full width */}
+            <div className="sm:col-span-2">
+              <PricingSuggestions
+                categoryId={watchedCategoryId || null}
+                currentPrice={watchedPrice ? Number(watchedPrice) : null}
               />
             </div>
 

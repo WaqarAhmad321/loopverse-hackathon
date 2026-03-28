@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
@@ -9,9 +9,9 @@ import {
   Button,
   Dropdown,
   Label,
-  SearchField,
   Separator,
 } from "@heroui/react";
+import { SmartSearch } from "@/components/ui/smart-search";
 import {
   Search,
   ShoppingCart,
@@ -46,24 +46,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const [searchValue, setSearchValue] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSearch = useCallback(() => {
-    const trimmed = searchValue.trim();
-    if (trimmed) {
-      router.push(`/products?q=${encodeURIComponent(trimmed)}`);
-      searchInputRef.current?.blur();
-    }
-  }, [searchValue, router]);
-
-  const handleSearchSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      handleSearch();
-    },
-    [handleSearch]
-  );
+  // Search is now handled by SmartSearch component
 
   const isSeller = user?.roles.includes("seller") ?? false;
   const initials = user?.full_name
@@ -120,25 +103,12 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
           </Link>
 
           {/* Search Bar — centered, takes available space */}
-          <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl mx-auto">
-            <SearchField
-              aria-label="Search products"
-              value={searchValue}
-              onChange={setSearchValue}
-              onSubmit={handleSearch}
-              className="w-full"
-            >
-              <SearchField.Group className="rounded-full border border-default-200 dark:border-default-100 bg-default-50 dark:bg-default-50/5 transition-colors duration-150 ease-out focus-within:border-accent focus-within:ring-1 focus-within:ring-accent/20">
-                <SearchField.SearchIcon />
-                <SearchField.Input
-                  ref={searchInputRef}
-                  placeholder="Search products, categories, sellers..."
-                  className="font-body"
-                />
-                <SearchField.ClearButton />
-              </SearchField.Group>
-            </SearchField>
-          </form>
+          <div className="flex-1 max-w-xl mx-auto">
+            <SmartSearch
+              placeholder="Search products, categories, sellers..."
+              compact
+            />
+          </div>
 
           {/* Nav Links */}
           <nav className="flex items-center gap-1">

@@ -1,6 +1,7 @@
 import { getUserWithRoles, createServerClient } from "@/lib/supabase/server";
 import { BuyerNavbar } from "@/components/layouts/buyer-navbar";
 import { Footer } from "@/components/layouts/footer";
+import { ChatbotWidget } from "@/components/ui/chatbot-widget";
 
 export default async function BuyerLayout({
   children,
@@ -35,6 +36,7 @@ export default async function BuyerLayout({
       <BuyerNavbar user={navUser} cartCount={cartCount} />
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
       <Footer />
+      <ChatbotWidget />
     </div>
   );
 }
