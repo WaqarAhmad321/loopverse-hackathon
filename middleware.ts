@@ -7,7 +7,7 @@ const AUTH_ROUTES = ["/login", "/register"];
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname)) return true;
   if (pathname.startsWith("/products")) return true;
-  if (pathname.startsWith("/sellers/")) return true;
+  if (pathname.startsWith("/sellers")) return true;
   if (pathname.startsWith("/register")) return true;
   if (pathname.startsWith("/login")) return true;
   if (pathname.startsWith("/api/webhooks/")) return true;
