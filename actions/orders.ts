@@ -163,6 +163,7 @@ export async function createOrder(input: unknown) {
   for (const item of data.items) {
     const { data: rpcResult, error: stockError } = await supabase.rpc("decrement_stock", {
       p_product_id: item.product_id,
+      p_variant_id: item.variant_id ?? null,
       p_quantity: item.quantity,
     });
 
@@ -171,6 +172,7 @@ export async function createOrder(input: unknown) {
       for (const decremented of decrementedItems) {
         await supabase.rpc("decrement_stock", {
           p_product_id: decremented.product_id,
+          p_variant_id: null,
           p_quantity: -decremented.quantity,
         });
       }
