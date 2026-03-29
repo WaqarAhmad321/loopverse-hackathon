@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createServerClient } from "@/lib/supabase/server";
+import { ReviewForm } from "./review-form";
 import {
   Star,
   ShieldCheck,
@@ -96,21 +97,13 @@ export default async function ProductDetailPage({
     .eq("product_id", product.id)
     .order("name");
 
-  // Fetch reviews with buyer info
+  // Fetch reviews (no user join - RLS blocks cross-user reads)
   const { data: reviews } = await supabase
     .from("reviews")
-    .select(
-      `
-      *,
-      users:buyer_id (
-        full_name,
-        avatar_url
-      )
-    `
-    )
+    .select("*")
     .eq("product_id", product.id)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(20);
 
   // "Customers Also Bought" — powered by RPC co-purchase engine
   let coPurchaseProducts: Product[] = [];
@@ -153,9 +146,7 @@ export default async function ProductDetailPage({
     "id" | "user_id" | "store_name" | "store_logo_url" | "is_verified"
   > | null;
   const typedVariants: ProductVariant[] = variants ?? [];
-  const typedReviews: (Review & {
-    users: Pick<User, "full_name" | "avatar_url">;
-  })[] = reviews ?? [];
+  const typedReviews: Review[] = (reviews ?? []) as Review[];
   const typedRelatedProducts: Product[] = relatedProducts ?? [];
 
   const hasDiscount =
@@ -182,7 +173,7 @@ export default async function ProductDetailPage({
       ratingDistribution[r.rating - 1]++;
     }
   });
-  const maxRatingCount = Math.max(...ratingDistribution, 1);
+  const actualReviewCount = typedReviews.length;
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-8 lg:px-8">
@@ -384,7 +375,7 @@ export default async function ProductDetailPage({
           <AddToWishlistButton productId={typedProduct.id} />
 
           {/* Delivery & Trust Info */}
-          <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-[var(--background-secondary,#F8FAFC)] p-4">
+          {/* <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-[var(--background-secondary,#F8FAFC)] p-4">
             <div className="flex items-center gap-3 text-sm text-[var(--text-secondary,#475569)] font-body">
               <Truck className="size-4 shrink-0 text-muted" />
               <span>Free shipping on orders over $50</span>
@@ -397,7 +388,7 @@ export default async function ProductDetailPage({
               <ShieldCheck className="size-4 shrink-0 text-muted" />
               <span>Buyer protection on every purchase</span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -493,24 +484,16 @@ export default async function ProductDetailPage({
                 <div className="flex items-start gap-3.5">
                   {/* Avatar */}
                   <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/[0.08]">
-                    {review.users?.avatar_url ? (
-                      <img
-                        src={review.users.avatar_url}
-                        alt={review.users.full_name}
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs font-semibold text-accent font-body">
-                        {review.users?.full_name?.charAt(0) ?? "U"}
-                      </span>
-                    )}
+                    <span className="text-xs font-semibold text-accent font-body">
+                      C
+                    </span>
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-foreground font-body">
-                        {review.users?.full_name ?? "Anonymous"}
+                        Customer
                       </span>
                       <span className="shrink-0 text-xs text-muted tabular-nums font-body">
                         {new Date(review.created_at).toLocaleDateString(
@@ -550,6 +533,9 @@ export default async function ProductDetailPage({
             ))}
           </div>
         )}
+
+        {/* Write a review form */}
+        <ReviewForm productId={typedProduct.id} productSlug={typedProduct.slug} />
       </section>
 
       {/* ================================================================ */}
