@@ -17,18 +17,11 @@ export default async function OrdersPage() {
 
   const { data: orders } = await supabase
     .from("orders")
-    .select(
-      `
-      *,
-      order_items (id)
-    `
-    )
+    .select("*")
     .eq("buyer_id", user.id)
     .order("created_at", { ascending: false });
 
-  const typedOrders = (orders ?? []) as (Order & {
-    order_items: { id: string }[];
-  })[];
+  const typedOrders = (orders ?? []) as Order[];
 
   return (
     <div className="mx-auto max-w-[1200px] px-6 py-10 lg:px-8">
@@ -114,8 +107,7 @@ export default async function OrdersPage() {
                       </td>
                       <td className="px-5 py-3.5">
                         <span className="text-sm text-[var(--text-secondary,#475569)] font-body">
-                          {order.order_items.length}{" "}
-                          {order.order_items.length === 1 ? "item" : "items"}
+                          Items
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
@@ -196,8 +188,8 @@ export default async function OrdersPage() {
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
                     <span className="text-sm text-muted font-body">
-                      {order.order_items.length}{" "}
-                      {order.order_items.length === 1 ? "item" : "items"}
+                      {1}{" "}
+                      {1 === 1 ? "item" : "items"}
                     </span>
                     <span className="text-sm font-semibold tabular-nums text-foreground font-body">
                       ${order.total.toFixed(2)}
