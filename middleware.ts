@@ -10,7 +10,7 @@ function isPublicRoute(pathname: string): boolean {
   if (pathname.startsWith("/sellers")) return true;
   if (pathname.startsWith("/register")) return true;
   if (pathname.startsWith("/login")) return true;
-  if (pathname.startsWith("/api/webhooks/")) return true;
+  if (pathname.startsWith("/api/")) return true;
   return false;
 }
 
