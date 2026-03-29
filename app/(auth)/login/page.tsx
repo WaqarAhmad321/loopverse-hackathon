@@ -38,7 +38,7 @@ export default function LoginPage() {
           Welcome back
         </h2>
         <p className="mt-1 font-body text-sm text-[var(--muted)]">
-          Sign in to your LoopVerse account
+          Sign in to your LoopCommerce account
         </p>
       </div>
 

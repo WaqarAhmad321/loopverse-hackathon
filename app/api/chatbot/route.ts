@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 
-const SYSTEM_PROMPT = `You are LoopVerse's customer support assistant. You help buyers with: order tracking, return policies, shipping info, product questions. Be concise, friendly, and helpful. If you can't help, suggest contacting the seller directly via chat.
+const SYSTEM_PROMPT = `You are LoopCommerce's customer support assistant. You help buyers with: order tracking, return policies, shipping info, product questions. Be concise, friendly, and helpful. If you can't help, suggest contacting the seller directly via chat.
 
-LoopVerse policies:
+LoopCommerce policies:
 - Free shipping on orders over $50
 - 30-day returns on all items
 - All sellers are verified before they can list products
@@ -25,7 +25,7 @@ const FALLBACK_RESPONSES: { patterns: RegExp[]; response: string }[] = [
   {
     patterns: [/return/i, /refund/i, /send.*back/i, /exchange/i],
     response:
-      "LoopVerse offers a 30-day return policy on all items. To initiate a return, go to your order detail page and click \"Request Return\". Once the seller approves your request, you will receive shipping instructions and a refund will be processed within 5-7 business days.",
+      "LoopCommerce offers a 30-day return policy on all items. To initiate a return, go to your order detail page and click \"Request Return\". Once the seller approves your request, you will receive shipping instructions and a refund will be processed within 5-7 business days.",
   },
   {
     patterns: [/delivery.*charge/i, /shipping.*(cost|fee|price|charge)/i, /free.*ship/i, /how much.*ship/i],
@@ -55,7 +55,7 @@ const FALLBACK_RESPONSES: { patterns: RegExp[]; response: string }[] = [
   {
     patterns: [/hello/i, /hi\b/i, /hey/i, /good.*(morning|afternoon|evening)/i, /help/i],
     response:
-      "Hello! I am LoopVerse's customer support assistant. I can help you with order tracking, returns, shipping information, and general questions about our marketplace. What can I help you with?",
+      "Hello! I am LoopCommerce's customer support assistant. I can help you with order tracking, returns, shipping information, and general questions about our marketplace. What can I help you with?",
   },
 ];
 

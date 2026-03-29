@@ -62,7 +62,7 @@ function NavContent({
         <Link href="/seller/dashboard" className="block" onClick={onItemClick}>
           <span className="font-display text-xl font-bold tracking-tight">
             <span className="text-[var(--foreground)]">Loop</span>
-            <span className="text-[var(--accent)]">Verse</span>
+            <span className="text-[var(--accent)]">Commerce</span>
           </span>
         </Link>
         <span className="mt-1.5 block font-body text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--muted)]">
@@ -198,7 +198,7 @@ export function SellerSidebar({ user }: SellerSidebarProps) {
         <Link href="/seller/dashboard">
           <span className="font-display text-lg font-bold tracking-tight">
             <span className="text-[var(--foreground)]">Loop</span>
-            <span className="text-[var(--accent)]">Verse</span>
+            <span className="text-[var(--accent)]">Commerce</span>
           </span>
         </Link>
       </header>

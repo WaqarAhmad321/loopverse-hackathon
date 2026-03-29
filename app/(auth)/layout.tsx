@@ -33,7 +33,7 @@ export default function AuthLayout({
         <Link href="/">
           <span className="font-display text-3xl font-bold tracking-tight">
             <span className="text-[var(--foreground)]">Loop</span>
-            <span className="text-[var(--accent)]">Verse</span>
+            <span className="text-[var(--accent)]">Commerce</span>
           </span>
         </Link>
       </div>
@@ -51,7 +51,7 @@ export default function AuthLayout({
 
       {/* Bottom subtle text */}
       <p className="relative z-10 mt-8 font-body text-xs text-[var(--muted)]">
-        {new Date().getFullYear()} LoopVerse. All rights reserved.
+        {new Date().getFullYear()} LoopCommerce. All rights reserved.
       </p>
     </div>
   );

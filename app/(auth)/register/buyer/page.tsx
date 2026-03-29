@@ -38,7 +38,7 @@ export default function RegisterBuyerPage() {
           Create your account
         </h2>
         <p className="mt-1 font-body text-sm text-[var(--muted)]">
-          Join LoopVerse and start discovering great products
+          Join LoopCommerce and start discovering great products
         </p>
       </div>
 

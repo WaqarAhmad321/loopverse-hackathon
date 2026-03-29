@@ -192,7 +192,7 @@ export function ChatbotWidget() {
             id: "welcome",
             role: "assistant",
             content:
-              "Hello! I am LoopVerse's support assistant. I can help you with order tracking, returns, shipping, and general questions. How can I help you today?",
+              "Hello! I am LoopCommerce's support assistant. I can help you with order tracking, returns, shipping, and general questions. How can I help you today?",
           },
         ]);
       }
@@ -226,7 +226,7 @@ export function ChatbotWidget() {
             </div>
             <div>
               <span className="font-display text-sm font-semibold text-foreground">
-                LoopVerse Support
+                LoopCommerce Support
               </span>
               <p className="font-body text-[11px] text-muted">
                 Typically replies instantly
@@ -348,7 +348,7 @@ export function ChatbotWidget() {
               {/* Powered by */}
               <div className="flex items-center justify-center pb-2.5 px-4">
                 <span className="font-body text-[10px] text-muted">
-                  Powered by LoopVerse AI
+                  Powered by LoopCommerce AI
                 </span>
               </div>
             </div>

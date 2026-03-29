@@ -1,4 +1,4 @@
-export const SITE_NAME = "LoopVerse";
+export const SITE_NAME = "LoopCommerce";
 export const SITE_DESCRIPTION = "Multi-vendor marketplace for everyone";
 
 export const ROLES = {

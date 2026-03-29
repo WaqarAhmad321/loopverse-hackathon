@@ -35,7 +35,7 @@ export default function RegisterSellerPage() {
       {/* Header */}
       <div className="mb-6">
         <h2 className="font-display text-2xl font-bold text-[var(--foreground)]">
-          Start selling on LoopVerse
+          Start selling on LoopCommerce
         </h2>
         <p className="mt-1 font-body text-sm text-[var(--muted)]">
           Create your seller account and open your store

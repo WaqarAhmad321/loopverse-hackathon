@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LoopVerse | Multi-Vendor Marketplace",
+  title: "LoopCommerce | Multi-Vendor Marketplace",
   description:
-    "Discover unique products from independent sellers. Shop with confidence on LoopVerse.",
+    "Discover unique products from independent sellers. Shop with confidence on LoopCommerce.",
 };
 
 export default function RootLayout({

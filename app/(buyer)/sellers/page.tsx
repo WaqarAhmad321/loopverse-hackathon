@@ -32,7 +32,7 @@ export default async function SellersPage() {
             No sellers yet
           </h3>
           <p className="mt-1 text-sm text-[var(--muted)] font-body">
-            Be the first to open a store on LoopVerse
+            Be the first to open a store on LoopCommerce
           </p>
           <Link
             href="/register/seller"
@@ -79,7 +79,7 @@ export default async function SellersPage() {
                       )}
                     </div>
                     <p className="mt-0.5 text-sm text-[var(--muted)] font-body">
-                      Seller on LoopVerse
+                      Seller on LoopCommerce
                     </p>
                   </div>
                 </div>

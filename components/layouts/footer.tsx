@@ -11,7 +11,7 @@ export function Footer() {
           <Link href="/" className="inline-block">
             <span className="font-display text-lg font-bold tracking-tight">
               <span className="text-[var(--foreground)]">Loop</span>
-              <span className="text-[var(--accent)]">Verse</span>
+              <span className="text-[var(--accent)]">Commerce</span>
             </span>
           </Link>
           <span className="hidden text-sm text-[var(--muted)] font-body sm:inline">
@@ -21,7 +21,7 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="font-body text-xs text-[var(--muted)]">
-          {currentYear} LoopVerse
+          {currentYear} LoopCommerce
         </p>
       </div>
     </footer>

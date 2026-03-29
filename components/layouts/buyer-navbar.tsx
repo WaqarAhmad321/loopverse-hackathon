@@ -99,7 +99,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
             className="mr-1 flex shrink-0 items-center gap-0 font-display text-xl font-bold tracking-tight transition-opacity duration-150 ease-out hover:opacity-80"
           >
             <span className="text-foreground">Loop</span>
-            <span className="text-accent">Verse</span>
+            <span className="text-accent">Commerce</span>
           </Link>
 
           {/* Search Bar — centered, takes available space */}
