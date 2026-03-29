@@ -4,6 +4,8 @@ import { getAllUsers } from "@/actions/admin";
 import type { UserRole } from "@/types/database";
 import { UserActions } from "./user-actions";
 import { UserToggleButton } from "./user-toggle-button";
+import { UserDetailModal } from "./user-detail-modal";
+import { UserDeleteButton } from "./user-delete-button";
 
 /* -------------------------------------------------------------------------- */
 /*  Helpers                                                                    */
@@ -191,10 +193,21 @@ export default async function AdminUsersPage({ searchParams }: UsersPageProps) {
                       {formatDate(user.created_at)}
                     </td>
                     <td className="px-5 py-3.5">
-                      <UserToggleButton
-                        userId={user.id}
-                        isActive={user.is_active}
-                      />
+                      <div className="flex items-center gap-2">
+                        <UserDetailModal
+                          userId={user.id}
+                          userName={user.full_name}
+                        />
+                        <UserToggleButton
+                          userId={user.id}
+                          isActive={user.is_active}
+                        />
+                        <UserDeleteButton
+                          userId={user.id}
+                          userName={user.full_name}
+                          isAdmin={user.roles.includes("admin")}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -2,7 +2,9 @@
 
 import { useState, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Heart, AlertCircle, LogIn } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface AddToWishlistButtonProps {
   productId: string;
@@ -13,9 +15,19 @@ export function AddToWishlistButton({ productId }: AddToWishlistButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authPrompt, setAuthPrompt] = useState(false);
 
-  const handleToggleWishlist = useCallback(() => {
+  const handleToggleWishlist = useCallback(async () => {
     setError(null);
+    setAuthPrompt(false);
+
+    // Check if user is logged in before calling server action
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setAuthPrompt(true);
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -61,6 +73,18 @@ export function AddToWishlistButton({ productId }: AddToWishlistButtonProps) {
         )}
         {added ? "Added to Wishlist" : "Add to Wishlist"}
       </button>
+      {authPrompt && (
+        <div className="mt-2 flex items-center gap-2 rounded-[6px] bg-accent/[0.06] px-3 py-2">
+          <LogIn className="size-3.5 shrink-0 text-accent" />
+          <p className="text-xs text-foreground font-body">
+            Please{" "}
+            <Link href="/login" className="font-semibold text-accent underline underline-offset-2 hover:text-[var(--accent-hover,#0F766E)]">
+              sign in
+            </Link>{" "}
+            to add items to your wishlist.
+          </p>
+        </div>
+      )}
       {error && (
         <div className="mt-2 flex items-center gap-2 rounded-[6px] bg-danger/[0.06] px-3 py-2">
           <AlertCircle className="size-3.5 shrink-0 text-danger" />

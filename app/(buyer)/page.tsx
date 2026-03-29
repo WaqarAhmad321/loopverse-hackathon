@@ -343,10 +343,10 @@ function ProductCard({ product }: { product: Product }) {
               rounded-full bg-white/80 backdrop-blur-sm text-muted
               opacity-0 transition-all duration-150 ease-out
               group-hover:opacity-100
-              hover:text-danger hover:bg-white
+              pointer-events-none
               shadow-sm
             "
-            aria-label="Add to wishlist"
+            aria-hidden="true"
           >
             <Heart className="size-4" strokeWidth={2} />
           </div>

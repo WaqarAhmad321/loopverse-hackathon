@@ -2,7 +2,9 @@
 
 import { useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Minus, Plus, Check, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { ShoppingCart, Minus, Plus, Check, AlertCircle, LogIn } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import type { ProductVariant } from "@/types/database";
 
 interface AddToCartFormProps {
@@ -26,6 +28,7 @@ export function AddToCartForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [authPrompt, setAuthPrompt] = useState(false);
 
   const selectedVariant = variants.find((v) => v.id === selectedVariantId);
   const effectiveMaxQty = selectedVariant
@@ -46,6 +49,15 @@ export function AddToCartForm({
   const handleAddToCart = useCallback(async () => {
     setError(null);
     setSuccess(false);
+    setAuthPrompt(false);
+
+    // Check if user is logged in before calling server action
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setAuthPrompt(true);
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -190,6 +202,18 @@ export function AddToCartForm({
       </button>
 
       {/* Feedback */}
+      {authPrompt && (
+        <div className="flex items-center gap-2 rounded-[6px] bg-accent/[0.06] px-3 py-2.5">
+          <LogIn className="size-4 shrink-0 text-accent" />
+          <p className="text-sm text-foreground font-body">
+            Please{" "}
+            <Link href="/login" className="font-semibold text-accent underline underline-offset-2 hover:text-[var(--accent-hover,#0F766E)]">
+              sign in
+            </Link>{" "}
+            to add items to your cart.
+          </p>
+        </div>
+      )}
       {error && (
         <div className="flex items-center gap-2 rounded-[6px] bg-danger/[0.06] px-3 py-2.5">
           <AlertCircle className="size-4 shrink-0 text-danger" />

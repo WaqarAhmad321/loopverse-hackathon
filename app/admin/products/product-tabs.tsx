@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { TextField, Label, Input } from "@heroui/react";
-import { Search } from "lucide-react";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button, TextField, Label, Input } from "@heroui/react";
+import { Search, X } from "lucide-react";
+import type { ReactNode } from "react";
 
 interface ProductTabsProps {
   pendingCount: number;
   allCount: number;
   pendingTable: ReactNode;
   allTable: ReactNode;
+  currentSearch?: string;
 }
 
 export function ProductTabs({
@@ -16,8 +19,27 @@ export function ProductTabs({
   allCount,
   pendingTable,
   allTable,
+  currentSearch = "",
 }: ProductTabsProps) {
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
+  const [searchValue, setSearchValue] = useState(currentSearch);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const handleSearch = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (searchValue) {
+      params.set("search", searchValue);
+    } else {
+      params.delete("search");
+    }
+    router.push(`/admin/products?${params.toString()}`);
+  };
+
+  const clearSearch = () => {
+    setSearchValue("");
+    router.push("/admin/products");
+  };
 
   const tabs = [
     { id: "pending" as const, label: "Pending Review", count: pendingCount },
@@ -63,15 +85,32 @@ export function ProductTabs({
           })}
         </div>
 
-        {/* Search field (visual, filtering is server-side for future) */}
-        <div className="sm:max-w-[260px]">
+        {/* Search */}
+        <div className="flex items-center gap-2 sm:max-w-[320px]">
           <TextField className="flex-1">
             <Label className="sr-only">Search products</Label>
             <Input
               placeholder="Search products..."
               className="rounded-[6px]"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSearch();
+              }}
             />
           </TextField>
+          <Button variant="primary" size="md" onPress={handleSearch}>
+            <Search className="size-4" strokeWidth={2} />
+          </Button>
+          {currentSearch && (
+            <button
+              onClick={clearSearch}
+              className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 font-body text-xs font-medium text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10"
+            >
+              <X className="size-3" strokeWidth={2} />
+              Clear
+            </button>
+          )}
         </div>
       </div>
 

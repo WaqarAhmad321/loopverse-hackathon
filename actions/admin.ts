@@ -267,3 +267,258 @@ export async function getPlatformStats(): Promise<
     recentOrders,
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/*  User Detail (for View Details modal)                                       */
+/* -------------------------------------------------------------------------- */
+
+export interface UserDetail {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+  is_active: boolean;
+  created_at: string;
+  roles: UserRole[];
+  order_count: number;
+  total_spent: number;
+}
+
+export async function getUserDetail(
+  userId: string
+): Promise<UserDetail | { error: string }> {
+  const admin = await verifyAdmin();
+  if (!admin) {
+    return { error: "Unauthorized: admin access required" };
+  }
+
+  const supabase = await createServerClient();
+
+  const { data: user, error: userError } = await supabase
+    .from("users")
+    .select("id, full_name, email, phone, avatar_url, is_active, created_at")
+    .eq("id", userId)
+    .single();
+
+  if (userError || !user) {
+    return { error: "User not found" };
+  }
+
+  const { data: roleRecords } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("total")
+    .eq("buyer_id", userId);
+
+  const orderCount = orders?.length ?? 0;
+  const totalSpent = (orders ?? []).reduce(
+    (sum, o) => sum + (o.total ?? 0),
+    0
+  );
+
+  return {
+    ...user,
+    roles: (roleRecords ?? []).map((r) => r.role as UserRole),
+    order_count: orderCount,
+    total_spent: totalSpent,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Delete User                                                                */
+/* -------------------------------------------------------------------------- */
+
+export async function deleteUser(
+  userId: string
+): Promise<{ success: boolean } | { error: string }> {
+  const admin = await verifyAdmin();
+  if (!admin) {
+    return { error: "Unauthorized: admin access required" };
+  }
+
+  if (userId === admin.id) {
+    return { error: "Cannot delete your own account" };
+  }
+
+  const supabase = await createServerClient();
+
+  // Check user exists and is not an admin
+  const { data: targetRoles } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  if ((targetRoles ?? []).some((r) => r.role === "admin")) {
+    return { error: "Cannot delete admin users" };
+  }
+
+  // Delete user roles first (foreign key)
+  await supabase.from("user_roles").delete().eq("user_id", userId);
+
+  // Delete the user record
+  const { error } = await supabase.from("users").delete().eq("id", userId);
+
+  if (error) {
+    return { error: "Failed to delete user" };
+  }
+
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Delete Product                                                             */
+/* -------------------------------------------------------------------------- */
+
+export async function deleteProduct(
+  productId: string
+): Promise<{ success: boolean } | { error: string }> {
+  const admin = await verifyAdmin();
+  if (!admin) {
+    return { error: "Unauthorized: admin access required" };
+  }
+
+  const supabase = await createServerClient();
+
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId);
+
+  if (error) {
+    return { error: "Failed to delete product: " + error.message };
+  }
+
+  revalidatePath("/admin/products");
+  return { success: true };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Get Order Detail                                                           */
+/* -------------------------------------------------------------------------- */
+
+export interface OrderDetailItem {
+  id: string;
+  product_name: string;
+  product_slug: string;
+  product_image: string | null;
+  seller_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  fulfillment_status: string;
+}
+
+export interface OrderDetail {
+  id: string;
+  buyer_name: string;
+  buyer_email: string;
+  total: number;
+  subtotal: number;
+  tax: number;
+  shipping_cost: number;
+  discount_amount: number;
+  status: string;
+  created_at: string;
+  shipping_address: Record<string, unknown> | null;
+  items: OrderDetailItem[];
+}
+
+export async function getOrderDetail(
+  orderId: string
+): Promise<OrderDetail | { error: string }> {
+  const admin = await verifyAdmin();
+  if (!admin) {
+    return { error: "Unauthorized: admin access required" };
+  }
+
+  const supabase = await createServerClient();
+
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .select(
+      "id, buyer_id, total, subtotal, tax, shipping_cost, discount_amount, status, created_at, shipping_address"
+    )
+    .eq("id", orderId)
+    .single();
+
+  if (orderError || !order) {
+    return { error: "Order not found" };
+  }
+
+  // Buyer info
+  const { data: buyer } = await supabase
+    .from("users")
+    .select("full_name, email")
+    .eq("id", order.buyer_id)
+    .single();
+
+  // Order items
+  const { data: items } = await supabase
+    .from("order_items")
+    .select("id, product_id, seller_id, quantity, unit_price, total_price, fulfillment_status")
+    .eq("order_id", orderId);
+
+  // Product info
+  const productIds = [...new Set((items ?? []).map((i) => i.product_id))];
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, name, slug, images")
+    .in("id", productIds.length > 0 ? productIds : ["__none__"]);
+
+  const productMap = new Map<string, { name: string; slug: string; image: string | null }>();
+  for (const p of products ?? []) {
+    productMap.set(p.id, {
+      name: p.name,
+      slug: p.slug,
+      image: Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : null,
+    });
+  }
+
+  // Seller info
+  const sellerIds = [...new Set((items ?? []).map((i) => i.seller_id))];
+  const { data: sellers } = await supabase
+    .from("users")
+    .select("id, full_name")
+    .in("id", sellerIds.length > 0 ? sellerIds : ["__none__"]);
+
+  const sellerMap = new Map<string, string>();
+  for (const s of sellers ?? []) {
+    sellerMap.set(s.id, s.full_name);
+  }
+
+  const detailItems: OrderDetailItem[] = (items ?? []).map((item) => {
+    const prod = productMap.get(item.product_id);
+    return {
+      id: item.id,
+      product_name: prod?.name ?? "Unknown Product",
+      product_slug: prod?.slug ?? "",
+      product_image: prod?.image ?? null,
+      seller_name: sellerMap.get(item.seller_id) ?? "Unknown",
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.total_price,
+      fulfillment_status: item.fulfillment_status,
+    };
+  });
+
+  return {
+    id: order.id,
+    buyer_name: buyer?.full_name ?? "Unknown",
+    buyer_email: buyer?.email ?? "Unknown",
+    total: order.total,
+    subtotal: order.subtotal,
+    tax: order.tax,
+    shipping_cost: order.shipping_cost,
+    discount_amount: order.discount_amount,
+    status: order.status,
+    created_at: order.created_at,
+    shipping_address: order.shipping_address as Record<string, unknown> | null,
+    items: detailItems,
+  };
+}

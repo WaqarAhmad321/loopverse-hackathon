@@ -22,7 +22,7 @@ export const sellerRegisterSchema = z
   .object({
     full_name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
-    phone: z.string().min(10, "Phone number is required"),
+    phone: z.string().min(10, "Phone must be at least 10 digits").optional().or(z.literal("")),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirm_password: z.string(),
     store_name: z.string().min(2, "Store name is required"),

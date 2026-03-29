@@ -8,6 +8,7 @@ import {
 } from "@/lib/constants";
 import type { ProductStatus } from "@/types/database";
 import { ProductModerationButtons } from "./product-moderation-buttons";
+import { ProductActionButtons } from "./product-action-buttons";
 import { ProductTabs } from "./product-tabs";
 
 /* -------------------------------------------------------------------------- */
@@ -52,6 +53,7 @@ function getStatusChipColor(
 interface ProductRow {
   id: string;
   name: string;
+  slug: string;
   price: number;
   status: ProductStatus;
   created_at: string;
@@ -63,7 +65,7 @@ interface ProductRow {
 /*  Data fetching                                                              */
 /* -------------------------------------------------------------------------- */
 
-async function getProducts(): Promise<{
+async function getProducts(search?: string): Promise<{
   pending: ProductRow[];
   all: ProductRow[];
 } | null> {
@@ -74,10 +76,19 @@ async function getProducts(): Promise<{
 
   const supabase = await createServerClient();
 
-  const { data: products } = await supabase
+  let query = supabase
     .from("products")
-    .select("id, name, price, status, created_at, seller_id")
+    .select("id, name, slug, price, status, created_at, seller_id")
     .order("created_at", { ascending: false });
+
+  if (search) {
+    const sanitized = search.replace(/[,.()"'\\]/g, "");
+    if (sanitized.length > 0) {
+      query = query.ilike("name", `%${sanitized}%`);
+    }
+  }
+
+  const { data: products } = await query;
 
   if (!products) {
     return { pending: [], all: [] };
@@ -107,6 +118,7 @@ async function getProducts(): Promise<{
   const rows: ProductRow[] = products.map((p) => ({
     id: p.id,
     name: p.name,
+    slug: p.slug,
     price: p.price,
     status: p.status as ProductStatus,
     created_at: p.created_at,
@@ -286,13 +298,16 @@ function AllProductsTable({ products }: { products: ProductRow[] }) {
                 {formatDate(product.created_at)}
               </td>
               <td className="px-5 py-3.5">
-                {product.status === "pending" ? (
-                  <ProductModerationButtons productId={product.id} />
-                ) : (
-                  <span className="font-body text-xs text-[color:var(--muted)]">
-                    --
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {product.status === "pending" && (
+                    <ProductModerationButtons productId={product.id} />
+                  )}
+                  <ProductActionButtons
+                    productId={product.id}
+                    productName={product.name}
+                    productSlug={product.slug}
+                  />
+                </div>
               </td>
             </tr>
           ))}
@@ -306,8 +321,18 @@ function AllProductsTable({ products }: { products: ProductRow[] }) {
 /*  Page                                                                       */
 /* -------------------------------------------------------------------------- */
 
-export default async function AdminProductsPage() {
-  const data = await getProducts();
+interface ProductsPageProps {
+  searchParams: Promise<{
+    search?: string;
+  }>;
+}
+
+export default async function AdminProductsPage({
+  searchParams,
+}: ProductsPageProps) {
+  const params = await searchParams;
+  const search = params.search ?? undefined;
+  const data = await getProducts(search);
 
   if (!data) {
     return (
@@ -343,6 +368,7 @@ export default async function AdminProductsPage() {
         allCount={data.all.length}
         pendingTable={<PendingTable products={data.pending} />}
         allTable={<AllProductsTable products={data.all} />}
+        currentSearch={search ?? ""}
       />
     </div>
   );
