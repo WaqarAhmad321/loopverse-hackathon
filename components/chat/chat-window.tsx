@@ -25,6 +25,41 @@ export function ChatWindow({
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAttachImage = useCallback(async () => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelected = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Upload the image
+    setIsSending(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("bucket", "product-images");
+      formData.append("path", `chat/${conversationId}/${Date.now()}`);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Send message with image URL
+        await sendMessage(file.name, data.url);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setIsSending(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [conversationId, sendMessage]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -132,12 +167,21 @@ export function ChatWindow({
       {/* Input area */}
       <div className="border-t border-default px-4 py-3">
         <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileSelected}
+          />
           <Button
             variant="ghost"
             size="sm"
             isIconOnly
             aria-label="Attach image"
             className="shrink-0"
+            onPress={handleAttachImage}
+            isDisabled={isSending}
           >
             <Paperclip className="size-4" />
           </Button>
