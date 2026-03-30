@@ -70,8 +70,38 @@ export async function updateFulfillmentStatus(
     return { error: error.message };
   }
 
+  // Sync the order-level status based on all items' fulfillment
+  // If ALL items reach a status, the order moves to that status
+  const { data: allItems } = await supabase
+    .from("order_items")
+    .select("fulfillment_status")
+    .eq("order_id", orderItem.order_id);
+
+  if (allItems && allItems.length > 0) {
+    const statuses = allItems.map((i) => i.fulfillment_status);
+    let newOrderStatus: string | null = null;
+
+    if (statuses.every((s) => s === "delivered")) {
+      newOrderStatus = "delivered";
+    } else if (statuses.every((s) => s === "shipped" || s === "delivered")) {
+      newOrderStatus = "shipped";
+    } else if (statuses.every((s) => s === "packed" || s === "shipped" || s === "delivered")) {
+      newOrderStatus = "packed";
+    } else if (statuses.every((s) => s !== "pending")) {
+      newOrderStatus = "confirmed";
+    }
+
+    if (newOrderStatus) {
+      await supabase
+        .from("orders")
+        .update({ status: newOrderStatus })
+        .eq("id", orderItem.order_id);
+    }
+  }
+
   revalidatePath("/seller/orders");
   revalidatePath(`/seller/orders/${orderItem.order_id}`);
+  revalidatePath("/orders");
   return { success: true };
 }
 
