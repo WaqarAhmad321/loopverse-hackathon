@@ -30,6 +30,48 @@ export async function POST(request: NextRequest) {
 
   try {
     switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const orderId = session.metadata?.order_id;
+        const paymentIntentId =
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null;
+
+        if (!orderId) {
+          console.error("No order_id in checkout session metadata");
+          break;
+        }
+
+        if (session.payment_status === "paid" && paymentIntentId) {
+          await supabase
+            .from("orders")
+            .update({
+              stripe_payment_intent_id: paymentIntentId,
+              status: "confirmed",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", orderId);
+
+          // Upsert payment record
+          await supabase.from("payments").upsert(
+            {
+              order_id: orderId,
+              stripe_payment_intent_id: paymentIntentId,
+              amount: (session.amount_total ?? 0) / 100,
+              status: "succeeded" as const,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "stripe_payment_intent_id" }
+          );
+
+          console.log(
+            `Checkout session completed for order ${orderId}, PI: ${paymentIntentId}`
+          );
+        }
+        break;
+      }
+
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const orderId = paymentIntent.metadata.order_id;

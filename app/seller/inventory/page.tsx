@@ -44,7 +44,7 @@ export default async function SellerInventoryPage() {
             )}
           </p>
         </div>
-        <BulkUpdateButton />
+        {/*<BulkUpdateButton /> */}
       </div>
 
       {/* Summary stat cards */}

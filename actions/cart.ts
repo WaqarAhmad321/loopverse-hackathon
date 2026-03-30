@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 export type CartActionResult = {
@@ -144,6 +145,28 @@ export async function clearCart(): Promise<CartActionResult> {
     .from("cart_items")
     .delete()
     .eq("buyer_id", user.id);
+
+  if (error) {
+    return { error: "Failed to clear cart" };
+  }
+
+  revalidatePath("/cart");
+  revalidatePath("/");
+  return { success: true };
+}
+
+/**
+ * Clear cart for a specific user by ID.
+ * Uses the admin client to bypass RLS — intended for server-side
+ * post-payment flows (e.g. checkout success page, webhooks).
+ */
+export async function clearCartForUser(userId: string): Promise<CartActionResult> {
+  const supabase = createAdminClient();
+
+  const { error } = await supabase
+    .from("cart_items")
+    .delete()
+    .eq("buyer_id", userId);
 
   if (error) {
     return { error: "Failed to clear cart" };

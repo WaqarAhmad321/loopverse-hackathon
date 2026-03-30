@@ -2,26 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button, Spinner } from "@heroui/react";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Check,
-  CheckCircle,
   CreditCard,
   Loader2,
   MapPin,
   Package,
-  ShoppingBag,
   Truck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { addressSchema, type AddressFormData } from "@/types/forms";
 import { createOrder } from "@/actions/orders";
-import { clearCart } from "@/actions/cart";
 import { createClient } from "@/lib/supabase/client";
 import type { CartItem, Product, ProductVariant } from "@/types/database";
 
@@ -90,8 +87,8 @@ export default function CheckoutPage() {
   const [isLoadingCart, setIsLoadingCart] = useState(true);
   const [selectedDelivery, setSelectedDelivery] = useState("standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [cancelled, setCancelled] = useState(false);
 
   const {
     register,
@@ -104,6 +101,16 @@ export default function CheckoutPage() {
       country: "US",
     },
   });
+
+  // Detect ?cancelled=true from Stripe redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("cancelled") === "true") {
+      setCancelled(true);
+      // Clean up URL without reload
+      window.history.replaceState({}, "", "/checkout");
+    }
+  }, []);
 
   // Fetch cart items on mount
   useEffect(() => {
@@ -188,6 +195,8 @@ export default function CheckoutPage() {
 
     try {
       const address = getValues();
+
+      // 1. Create the order in the database
       const result = await createOrder({
         items: cartItems.map((item) => ({
           product_id: item.product_id,
@@ -213,17 +222,59 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Clear the cart after successful order
-      await clearCart();
+      const newOrderId = result.orderId;
+      if (!newOrderId) {
+        setSubmitError("Order created but no ID returned.");
+        setIsSubmitting(false);
+        return;
+      }
 
-      setOrderId(result.orderId ?? null);
-      setCurrentStep(4);
+      // 2. Build line items for Stripe Checkout
+      const stripeItems = cartItems.map((item) => {
+        const basePrice =
+          item.products.discount_price !== null &&
+          item.products.discount_price < item.products.price
+            ? item.products.discount_price
+            : item.products.price;
+        const modifier = item.product_variants?.price_modifier ?? 0;
+        const unitPrice = basePrice + modifier;
+
+        return {
+          name: item.products.name +
+            (item.product_variants ? ` (${item.product_variants.value})` : ""),
+          price: unitPrice,
+          quantity: item.quantity,
+          image: item.products.images?.[0],
+        };
+      });
+
+      // 3. Create Stripe Checkout Session
+      const sessionRes = await fetch("/api/checkout/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: stripeItems,
+          orderId: newOrderId,
+          shippingCost: priceBreakdown.shippingCost,
+          tax: priceBreakdown.tax,
+        }),
+      });
+
+      const sessionData = await sessionRes.json();
+
+      if (!sessionRes.ok || !sessionData.url) {
+        setSubmitError(sessionData.error ?? "Failed to start payment. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 4. Redirect to Stripe Checkout
+      window.location.href = sessionData.url;
     } catch {
       setSubmitError("Something went wrong. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
-  }, [cartItems, getValues, selectedDelivery]);
+  }, [cartItems, getValues, selectedDelivery, priceBreakdown.shippingCost, priceBreakdown.tax]);
 
   /* ---------------------------------------------------------------- */
   /*  Loading state                                                    */
@@ -303,6 +354,23 @@ export default function CheckoutPage() {
           })}
         </div>
       </div>
+
+      {/* Cancelled payment banner */}
+      {cancelled && (
+        <div className="mb-6 rounded-[10px] border border-warning/30 bg-warning/5 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-warning" />
+            <div>
+              <p className="text-sm font-medium text-foreground font-body">
+                Payment cancelled
+              </p>
+              <p className="mt-0.5 text-sm text-[var(--text-secondary,#475569)] font-body">
+                Your payment was cancelled. You can review your order and try again.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
         {/* ============================================================ */}
@@ -697,11 +765,12 @@ export default function CheckoutPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
-                      Placing Order...
+                      Redirecting to Payment...
                     </>
                   ) : (
                     <>
-                      Place Order &middot; ${priceBreakdown.total.toFixed(2)}
+                      <CreditCard className="size-4" />
+                      Pay with Stripe &middot; ${priceBreakdown.total.toFixed(2)}
                     </>
                   )}
                 </Button>
@@ -709,57 +778,12 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* -------------------------------------------------------------- */}
-          {/*  Step 4: Confirmation                                           */}
-          {/* -------------------------------------------------------------- */}
-          {currentStep === 4 && (
-            <div className="rounded-[10px] border border-border bg-surface p-8 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.03)]">
-              <div className="flex flex-col items-center gap-5 py-8 text-center">
-                <div className="flex size-16 items-center justify-center rounded-full bg-accent/10">
-                  <CheckCircle className="size-8 text-accent" />
-                </div>
-
-                <h2 className="font-display text-2xl font-bold text-foreground">
-                  Order Confirmed!
-                </h2>
-
-                <p className="max-w-sm text-sm text-[var(--text-secondary,#475569)] font-body">
-                  Thank you for your purchase. Your order has been placed
-                  successfully. You will receive a confirmation email shortly.
-                </p>
-
-                {orderId && (
-                  <div className="rounded-[10px] bg-[var(--background-secondary,#F8FAFC)] px-5 py-3">
-                    <p className="text-xs text-muted font-body">Order ID</p>
-                    <p className="mt-0.5 font-mono text-sm font-semibold text-foreground">
-                      {orderId}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-                  <Link href="/products">
-                    <Button variant="primary" size="lg">
-                      Continue Shopping
-                    </Button>
-                  </Link>
-                  {orderId && (
-                    <Link href={`/orders/${orderId}`}>
-                      <Button variant="outline" size="lg">
-                        View Order Details
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ============================================================ */}
         {/*  Cart Summary Sidebar (steps 1-3)                            */}
         {/* ============================================================ */}
-        {currentStep < 4 && (
+        {currentStep <= 3 && (
           <div className="lg:col-span-1">
             <div
               className="

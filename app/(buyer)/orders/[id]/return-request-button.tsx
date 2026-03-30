@@ -57,7 +57,7 @@ export function ReturnRequestButton({ orderItemId }: ReturnRequestButtonProps) {
   }
 
   return (
-    <>
+    <div className="flex items-center gap-2 flex-col">
       <Button
         size="sm"
         variant="outline"
@@ -127,6 +127,6 @@ export function ReturnRequestButton({ orderItemId }: ReturnRequestButtonProps) {
           </Button>
         </Modal.Footer>
       </Modal>
-    </>
+    </div>
   );
 }
