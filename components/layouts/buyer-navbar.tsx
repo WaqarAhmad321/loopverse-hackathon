@@ -69,7 +69,7 @@ export function BuyerNavbar({ user, cartCount }: BuyerNavbarProps) {
           router.push("/orders");
           break;
         case "messages":
-          router.push("/messages");
+          router.push("/chat");
           break;
         case "seller-portal":
           router.push("/seller");

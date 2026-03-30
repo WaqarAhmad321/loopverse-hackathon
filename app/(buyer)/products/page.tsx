@@ -72,9 +72,9 @@ export default async function ProductsPage({
     .select("*", { count: "exact" })
     .eq("status", "active");
 
-  // Full-text search
+  // Search: use ilike for partial matches (more user-friendly than full-text)
   if (query) {
-    productQuery = productQuery.textSearch("search_vector", query);
+    productQuery = productQuery.ilike("name", `%${query}%`);
   }
 
   // Category filter

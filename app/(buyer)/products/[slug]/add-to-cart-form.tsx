@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ShoppingCart, Minus, Plus, Check, AlertCircle, LogIn } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { addToCart } from "@/actions/cart";
 import type { ProductVariant } from "@/types/database";
 
 interface AddToCartFormProps {
@@ -61,19 +62,14 @@ export function AddToCartForm({
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/cart", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            product_id: productId,
-            variant_id: selectedVariantId || null,
-            quantity,
-          }),
-        });
+        const result = await addToCart(
+          productId,
+          selectedVariantId || null,
+          quantity
+        );
 
-        if (!res.ok) {
-          const data = await res.json();
-          setError(data.error ?? "Failed to add to cart");
+        if (result.error) {
+          setError(result.error);
           return;
         }
 
