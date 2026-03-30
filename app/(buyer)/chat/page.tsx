@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@heroui/react";
 import { ArrowLeft, Loader2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,7 @@ interface ConversationRow {
 
 export default function BuyerChatPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<ConversationListItem[]>(
     []
   );
@@ -64,19 +65,41 @@ export default function BuyerChatPage() {
 
       setCurrentUserId(user.id);
 
+      // Simple query without complex joins (PostgREST can't resolve cross-FK joins)
       const { data } = await supabase
         .from("chat_conversations")
-        .select(
-          `id, is_resolved, last_message_at, seller_id, product_id,
-          seller_profile:seller_profiles!chat_conversations_seller_id_fkey(store_name, store_logo_url),
-          seller_user:users!chat_conversations_seller_id_fkey(id, full_name, avatar_url),
-          product:products(name),
-          messages:chat_messages(content, is_read, sender_id)`
-        )
+        .select("id, is_resolved, last_message_at, seller_id, product_id")
         .eq("buyer_id", user.id)
         .order("last_message_at", { ascending: false });
 
-      const rows = (data ?? []) as unknown as ConversationRow[];
+      const convos = data ?? [];
+
+      // Fetch seller names separately
+      const sellerIds = [...new Set(convos.map((c) => c.seller_id))];
+      const { data: sellers } = await supabase
+        .from("users")
+        .select("id, full_name")
+        .in("id", sellerIds.length > 0 ? sellerIds : ["none"]);
+
+      const { data: sellerProfiles } = await supabase
+        .from("seller_profiles")
+        .select("user_id, store_name, store_logo_url")
+        .in("user_id", sellerIds.length > 0 ? sellerIds : ["none"]);
+
+      const sellerMap = new Map(sellers?.map((s) => [s.id, s.full_name]) ?? []);
+      const profileMap = new Map(sellerProfiles?.map((p) => [p.user_id, p]) ?? []);
+
+      const rows: ConversationRow[] = convos.map((c) => ({
+        id: c.id,
+        is_resolved: c.is_resolved,
+        last_message_at: c.last_message_at,
+        seller_id: c.seller_id,
+        product_id: c.product_id,
+        seller_profile: profileMap.get(c.seller_id) ?? { store_name: "Seller", store_logo_url: null },
+        seller_user: { id: c.seller_id, full_name: sellerMap.get(c.seller_id) ?? "Seller", avatar_url: null },
+        product: null,
+        messages: [],
+      }));
 
       const nameMap: Record<string, string> = {};
 
