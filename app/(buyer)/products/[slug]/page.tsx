@@ -22,6 +22,7 @@ import type {
 } from "@/types/database";
 import { AddToCartForm } from "./add-to-cart-form";
 import { AddToWishlistButton } from "./add-to-wishlist-button";
+import { ChatWithSellerButton } from "./chat-with-seller-button";
 import { ImageGallery } from "./image-gallery";
 import { ProductViewTracker } from "@/components/ui/product-view-tracker";
 import { getCoPurchasedProducts } from "@/actions/recommendations";
@@ -373,6 +374,15 @@ export default async function ProductDetailPage({
 
           {/* Wishlist */}
           <AddToWishlistButton productId={typedProduct.id} />
+
+          {/* Chat with Seller */}
+          {typedSellerProfile && (
+            <ChatWithSellerButton
+              sellerId={typedSellerProfile.user_id}
+              productId={typedProduct.id}
+              storeName={typedSellerProfile.store_name}
+            />
+          )}
 
           {/* Delivery & Trust Info */}
           {/* <div className="flex flex-col gap-3 rounded-[10px] border border-border bg-[var(--background-secondary,#F8FAFC)] p-4">
