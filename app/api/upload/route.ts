@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { cookies } from "next/headers";
 
 export async function POST(request: Request) {
@@ -13,6 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    // Auth check with regular client
     const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,35 +34,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Generate a unique file path
+    // Use admin client for storage upload (bypasses storage policies)
+    const adminSupabase = createAdminClient();
+
     const ext = file.name.split(".").pop() || "png";
     const filePath = path
       ? `${path}.${ext}`
       : `${user.id}/${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadError } = await adminSupabase.storage
       .from(bucket)
-      .upload(filePath, file, {
+      .upload(filePath, buffer, {
+        contentType: file.type,
         cacheControl: "3600",
         upsert: true,
       });
 
     if (uploadError) {
       return NextResponse.json(
-        { error: `Failed to upload ${file.name}: ${uploadError.message}` },
+        { error: `Upload failed: ${uploadError.message}` },
         { status: 500 }
       );
     }
 
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = adminSupabase.storage
       .from(bucket)
       .getPublicUrl(filePath);
 
     return NextResponse.json({ url: urlData.publicUrl });
-  } catch {
-    return NextResponse.json(
-      { error: "Upload failed" },
-      { status: 500 }
-    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Upload failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
